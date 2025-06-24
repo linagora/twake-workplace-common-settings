@@ -1,4 +1,4 @@
-name: Registration Push
+name: Push
 
 on:
   push:
