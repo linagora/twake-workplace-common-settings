@@ -175,6 +175,38 @@ the `access_token` is an OIDC access token.
 
 ---
 
+## POST `/api/admin/user/settings/sync`
+
+Synchronize all users settings with all apps by publishing update messages to RabbitMQ ( admin API )
+
+### Response
+
+* **200 OK** - the job started
+* **400 Bad Request** – Invalid or missing username
+* **401 Unauthorized** – Missing or invalid token
+* **500 Internal Server Error** - something wrong happaned
+
+---
+
+## POST `/api/admin/user/settings/sync/:userId`
+
+Synchronize specific user settings with all apps by publishing update messages to RabbitMQ ( admin API )
+
+### Path Parameters
+
+| Param  | Type   | Description             |
+| ------ | ------ | ----------------------- |
+| userId | string | The username (nickname) |
+
+### Response
+
+* **200 OK** - the settings were synchronized
+* **400 Bad Request** – Invalid or missing username
+* **401 Unauthorized** – Missing or invalid token
+* **500 Internal Server Error** - something wrong happaned
+
+---
+
 ## 📘 Notes
 
 * The `version` must be incremented appropriately when updating.
