@@ -22,3 +22,6 @@ export const PROTECTED_APIS = ['/api/admin/'];
 export const OIDC_PROTECTED_APIS = ['/api/user/settings'];
 
 export const DEFAULT_DB_TIMEOUT = 10;
+
+export const SYNC_BATCH_SIZE = 50;
+export const SYNC_PROCESS_DELAY = 500;
