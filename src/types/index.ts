@@ -35,3 +35,9 @@ export interface UserSettingsResponse extends Partial<Nullable<UserSettings>> {
 	version: number;
 	nickname: string;
 }
+
+export interface UserSettingsEntry {
+	nickname: string;
+	version: number;
+	settings: Partial<Nullable<UserSettings>>;
+}
