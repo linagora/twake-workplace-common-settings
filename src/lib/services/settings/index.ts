@@ -1,20 +1,28 @@
 import { env } from '$env/dynamic/private';
-import { error } from '@sveltejs/kit';
 import { v6 as uuid } from 'uuid';
-import { eq } from 'drizzle-orm';
+import { eq, gt } from 'drizzle-orm';
 import { db } from '$db';
-import { userSettingsTable } from '$db/schema';
-import rabbitMQService from '$services/rabbitmq';
 import loggerService, { type GenericLogger } from '$services/logger';
+import rabbitMQService from '$services/rabbitmq';
+import { userSettingsTable } from '$db/schema';
 import { updateUserSettingsSchema } from '$lib/schemas/user-settings';
-import type { Nullable, SettingsMessage, UserSettings, UserSettingsResponse } from '$types';
+import type {
+	Nullable,
+	SettingsMessage,
+	UserSettings,
+	UserSettingsEntry,
+	UserSettingsResponse
+} from '$types';
 import {
 	DEFAULT_RABBITMQ_EXCHANGE,
 	DEFAULT_SETTINGS_INPUT_QUEUE,
 	DEFAULT_SETTINGS_INPUT_ROUTING_KEY,
 	DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY,
-	EDITABLE_USER_SETTINGS
+	EDITABLE_USER_SETTINGS,
+	SYNC_BATCH_SIZE,
+	SYNC_PROCESS_DELAY
 } from '$utils/config';
+import { error } from '@sveltejs/kit';
 
 class SettingsService {
 	public readonly name = 'settings';
@@ -69,6 +77,8 @@ class SettingsService {
 				this.inputQueue,
 				this.handleUpdateSettingsMessage.bind(this)
 			);
+
+			this.logger.info('Settings service initialized');
 		} catch (err) {
 			this.logger.error('Failed to initialize settings service', { err });
 
@@ -147,6 +157,8 @@ class SettingsService {
 			.update(userSettingsTable)
 			.set({ settings, version })
 			.where(eq(userSettingsTable.nickname, nickname));
+
+		this.logger.info(`Updated user ${nickname} settings with version ${version}`);
 	};
 
 	/**
@@ -157,7 +169,7 @@ class SettingsService {
 	 */
 	public sendSettingsUpdateNotification = async (username: string): Promise<void> => {
 		try {
-			this.logger.info('Sending settings update notification');
+			this.logger.info(`Sending settings update notification for user: ${username}`);
 
 			const latestUserSettings = await this.getUserSettings(username);
 
@@ -169,7 +181,7 @@ class SettingsService {
 
 			await this.broadcastUserSettingsUpdateNotification(username, latestUserSettings);
 		} catch (err) {
-			this.logger.error('Failed to send settings update notification', err);
+			this.logger.error(`Failed to send settings update notification for user: ${username}`, err);
 		}
 	};
 
@@ -183,8 +195,8 @@ class SettingsService {
 		user: string,
 		payload: UserSettingsResponse
 	): Promise<void> => {
-		this.logger.info('Notifying settings update');
-		const notification = this.buildUserSettingsUpdateNotification(user, payload);
+		this.logger.info(`sending user ${user} settings update notification`);
+		const notification = this.buildUserSettingsUpdateNotification(payload);
 
 		await rabbitMQService.publish(this.exchange, this.outKey, notification);
 
@@ -260,15 +272,13 @@ class SettingsService {
 	/**
 	 * Builds a settings updated notification message
 	 *
-	 * @param {string} nickname - the nickname of the user
 	 * @param {UserSettingsResponse} payload - the user settings payload
 	 * @returns {SettingsMessage} - the notification message
 	 */
 	private buildUserSettingsUpdateNotification = (
-		nickname: string,
 		payload: UserSettingsResponse
 	): SettingsMessage => {
-		const { version } = payload;
+		const { version, nickname } = payload;
 
 		return {
 			nickname,
@@ -296,6 +306,67 @@ class SettingsService {
 		}
 
 		return payload;
+	};
+
+	/**
+	 * Broadcast settings messages
+	 *
+	 * @param {UserSettingsEntry[]} userSettings - the messages to broadcast
+	 * @returns {Promise<void>} - a promise that resolves when the messages are broadcasted
+	 */
+	private broadcastUserSettingsMessages = async (
+		userSettings: UserSettingsEntry[]
+	): Promise<void> => {
+		this.logger.info('Broadcasting user settings messages');
+
+		for (const { nickname, settings, version } of userSettings) {
+			const message = this.buildUserSettingsUpdateNotification({
+				nickname,
+				version,
+				...settings
+			});
+
+			try {
+				await rabbitMQService.publish(this.exchange, this.outKey, message);
+			} catch (error) {
+				this.logger.error(`Failed to broadcast settings for user ${nickname}`, error);
+			}
+		}
+	};
+
+	/**
+	 * Synchronizes the settings.
+	 *
+	 * Publishes the stored settings to the routing key
+	 *
+	 * @returns {Promise<void>} - a promise that resolves when the settings are synced
+	 */
+	synchronizeSettings = async (): Promise<void> => {
+		this.logger.info('Synchronizing user settings started');
+
+		let lastProcessedUser: string | null = null;
+		let batch: UserSettingsEntry[];
+
+		do {
+			batch = await db
+				.select()
+				.from(userSettingsTable)
+				.where(lastProcessedUser ? gt(userSettingsTable.nickname, lastProcessedUser) : undefined)
+				.orderBy(userSettingsTable.nickname)
+				.limit(SYNC_BATCH_SIZE);
+
+			if (batch.length === 0) {
+				break;
+			}
+
+			await this.broadcastUserSettingsMessages(batch);
+
+			lastProcessedUser = batch[batch.length - 1].nickname;
+
+			if (batch.length === SYNC_BATCH_SIZE) {
+				await new Promise((resolve) => setTimeout(resolve, SYNC_PROCESS_DELAY));
+			}
+		} while (batch.length === SYNC_BATCH_SIZE);
 	};
 }
 
