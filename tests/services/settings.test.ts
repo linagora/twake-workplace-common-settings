@@ -2,15 +2,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import settingsService from '$services/settings';
 import type { SettingsMessage, UserSettingsResponse } from '$types';
 
-const { mockFindFirst, mockInsertValues, mockUpdateSet, mockSubscribe, mockPublish } = vi.hoisted(
-	() => ({
-		mockFindFirst: vi.fn(),
-		mockInsertValues: vi.fn(),
-		mockUpdateSet: vi.fn(),
-		mockSubscribe: vi.fn(),
-		mockPublish: vi.fn()
-	})
-);
+const {
+	mockFindFirst,
+	mockInsertValues,
+	mockUpdateSet,
+	mockSubscribe,
+	mockPublish,
+	fromMock,
+	whereMock,
+	orderByMock,
+	limitMock,
+	selectMock
+} = vi.hoisted(() => ({
+	mockFindFirst: vi.fn(),
+	mockInsertValues: vi.fn(),
+	mockUpdateSet: vi.fn(),
+	mockSubscribe: vi.fn(),
+	mockPublish: vi.fn(),
+	fromMock: vi.fn(),
+	whereMock: vi.fn(),
+	orderByMock: vi.fn(),
+	limitMock: vi.fn(),
+	selectMock: vi.fn()
+}));
 
 vi.mock('$services/rabbitmq', () => ({
 	default: {
@@ -24,7 +38,7 @@ vi.mock('$env/dynamic/private', () => ({
 		RABBITMQ_EXCHANGE: 'exchange',
 		RABBITMQ_SETTINGS_INPUT_QUEUE: 'queue',
 		RABBITMQ_SETTINGS_INPUT_ROUTING_KEY: 'inKey',
-		RABBITMQ_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey'
+		RABBITMQ_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey',
 	}
 }));
 
@@ -41,7 +55,12 @@ vi.mock('$db', () => {
 			})),
 			update: vi.fn(() => ({
 				set: mockUpdateSet
-			}))
+			})),
+			select: selectMock.mockReturnThis(),
+			from: fromMock.mockReturnThis(),
+			where: whereMock.mockReturnThis(),
+			orderBy: orderByMock.mockReturnThis(),
+			limit: limitMock.mockReturnThis()
 		}
 	};
 });
@@ -60,7 +79,9 @@ vi.mock('$utils/config', () => ({
 	DEFAULT_SETTINGS_INPUT_QUEUE: 'queue',
 	DEFAULT_SETTINGS_INPUT_ROUTING_KEY: 'inKey',
 	DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey',
-	EDITABLE_USER_SETTINGS: ['language', 'timezone', 'avatar', 'display_name']
+	EDITABLE_USER_SETTINGS: ['language', 'timezone', 'avatar', 'display_name'],
+	SYNC_BATCH_SIZE: 5,
+	SYNC_PROCESS_DELAY: 500
 }));
 
 vi.mock('$lib/schemas/user-settings', async () => {
@@ -403,6 +424,116 @@ describe('Settings service', () => {
 			await expect(
 				settingsService.sendSettingsUpdateNotification('testuser')
 			).resolves.toBeUndefined();
+		});
+	});
+
+  describe('the synchronizeSettings method', () => {
+		it('should batch fetch user settings', async () => {
+			limitMock.mockResolvedValue([]);
+
+			await settingsService.synchronizeSettings();
+
+			expect(limitMock).toHaveBeenCalledWith(5);
+		});
+
+		it('should batch call the rabbitmq publish method', async () => {
+			limitMock.mockResolvedValue([
+				{
+					nickname: 'testuser',
+					version: 2,
+					settings: {
+						language: 'en',
+						timezone: 'UTC',
+						avatar: 'https://example.com/avatar.png',
+						last_name: 'Doe',
+						first_name: 'John',
+						email: 'john@example.com',
+						phone: '+1234567890',
+						matrix_id: null,
+						display_name: 'John Doe'
+					}
+				},
+				{
+					nickname: 'testuser2',
+					version: 2,
+					settings: {
+						language: 'en',
+						timezone: 'UTC',
+						avatar: 'https://example.com/avatar.png',
+						last_name: 'Doe',
+						first_name: 'John',
+						email: 'john@example.com',
+						phone: '+1234567890',
+						matrix_id: null,
+						display_name: 'John Doe'
+					}
+				}
+			]);
+
+			await settingsService.synchronizeSettings();
+
+			expect(mockPublish).toHaveBeenCalledTimes(2);
+		});
+
+		it('should handle empty results from database', async () => {
+			limitMock.mockResolvedValue([]);
+			mockPublish.mockResolvedValue(undefined);
+
+			await settingsService.synchronizeSettings();
+
+			expect(mockPublish).not.toHaveBeenCalled();
+		});
+
+		it('should continue processing remaining records if publishing one fails', async () => {
+			limitMock.mockResolvedValue([
+				{
+					nickname: 'user1',
+					version: 1,
+					settings: {
+						language: 'en',
+						timezone: 'UTC'
+					}
+				},
+				{
+					nickname: 'user2',
+					version: 2,
+					settings: {
+						language: 'fr',
+						timezone: 'CET'
+					}
+				}
+			]);
+
+			mockPublish
+				.mockRejectedValueOnce(new Error('Publish failed'))
+				.mockResolvedValueOnce(undefined);
+
+			await settingsService.synchronizeSettings();
+
+			expect(mockPublish).toHaveBeenCalledTimes(2);
+		});
+
+		it('should throw an error if something wrong happens', async () => {
+			limitMock.mockRejectedValue(new Error('db error'));
+
+			await expect(settingsService.synchronizeSettings()).rejects.toThrow();
+		});
+
+		it('should should not throw an error if the message fails to be published', async () => {
+			limitMock.mockResolvedValue([
+				{
+					nickname: 'user1',
+					version: 1,
+					settings: {
+						language: 'en',
+						timezone: 'UTC'
+					}
+				}
+			]);
+
+			mockPublish.mockRejectedValue(new Error('db error'));
+
+			await expect(settingsService.synchronizeSettings()).resolves.not.toThrow();
 		});
 	});
 });
