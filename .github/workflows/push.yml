@@ -10,3 +10,9 @@ jobs:
     name: Build And Test
     uses: ./.github/workflows/build.yml
     secrets: inherit
+
+  publish:
+    needs: [test]
+    name: Publish latest tag
+    uses: ./.github/workflows/publish-latest.yml
+    secrets: inherit

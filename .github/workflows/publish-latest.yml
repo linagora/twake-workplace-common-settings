@@ -1,0 +1,21 @@
+name: Publish latest image
+
+on:
+  workflow_call:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - id: pre-step
+        shell: bash
+        run: echo "release-version=$(echo ${GITHUB_REF:10})" >> $GITHUB_OUTPUT
+      - name: Publish to GH Docker registry
+        uses: elgohr/Publish-Docker-Github-Action@v5
+        with:
+          name: rezk2ll/twake-workplace-common-settings
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          tags: "latest"
