@@ -81,7 +81,8 @@ vi.mock('$utils/config', () => ({
 	DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey',
 	EDITABLE_USER_SETTINGS: ['language', 'timezone', 'avatar', 'display_name'],
 	SYNC_BATCH_SIZE: 5,
-	SYNC_PROCESS_DELAY: 500
+	SYNC_PROCESS_DELAY: 500,
+	SETTINGS_NOTIFICATION_SOURCE: 'common-settings'
 }));
 
 vi.mock('$lib/schemas/user-settings', async () => {
