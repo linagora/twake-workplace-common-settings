@@ -7,7 +7,7 @@ export const DEFAULT_RABBITMQ_RETRY_DELAY = 1000;
 export const DEFAULT_SETTINGS_INPUT_QUEUE = 'user.settings.input';
 export const DEFAULT_SETTINGS_INPUT_ROUTING_KEY = 'user.settings.update';
 export const DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY = 'user.settings.updated';
-export const SETTINGS_NOTIFICATION_SOURCE = 'registration';
+export const SETTINGS_NOTIFICATION_SOURCE = 'common-settings';
 
 export const EDITABLE_USER_SETTINGS: Array<keyof UserSettings> = [
 	'language',
