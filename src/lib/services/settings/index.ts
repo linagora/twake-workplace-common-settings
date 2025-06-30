@@ -19,6 +19,7 @@ import {
 	DEFAULT_SETTINGS_INPUT_ROUTING_KEY,
 	DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY,
 	EDITABLE_USER_SETTINGS,
+	SETTINGS_NOTIFICATION_SOURCE,
 	SYNC_BATCH_SIZE,
 	SYNC_PROCESS_DELAY
 } from '$utils/config';
@@ -283,7 +284,7 @@ class SettingsService {
 		return {
 			nickname,
 			payload,
-			source: 'registration',
+			source: SETTINGS_NOTIFICATION_SOURCE,
 			timestamp: Date.now(),
 			request_id: uuid(),
 			version
