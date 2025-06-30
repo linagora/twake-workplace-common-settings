@@ -2,7 +2,12 @@
 
 common settings service for twake workplace
 
-[API Documentation](documentation/README.md)
+[Documentation](documentation/README.md)
+
+## Requirements
+
+- RabbitMQ
+- PostgreSQL
 
 ## Developing
 
