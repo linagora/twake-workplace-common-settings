@@ -45,7 +45,7 @@ This message is consumed by backend services responsible for updating their cach
 | `nickname`   | string  | Unique nickname (primary key) of the user in the database.   |
 | `request_id` | string  | Unique identifier for this update request .                  |
 | `timestamp`  | integer | Unix timestamp in milliseconds when the message was emitted. |
-| `version`    | integer | Version of the message or schema used.                       |
+| `version`    | integer | Version of the user settings.                                |
 | `payload`    | object  | Actual user settings to be updated.                          |
 
 ### the payload object:
@@ -58,12 +58,11 @@ This message is consumed by backend services responsible for updating their cach
 | `last_name`    | string | User's last name.                                 |
 | `first_name`   | string | User's first name.                                |
 | `email`        | string | User's email address.                             |
-| `phone`        | string | User's phone number in international format.      |
-| `matrix_id`    | string | User's Matrix ID.  (can be null)                  |
+| `phone`        | string | User's phone number in E.164 format.              |
+| `matrix_id`    | string | User's Matrix ID. (can be null)                   |
 | `display_name` | string | Full display name to show in UIs.                 |
 
 ## Expected Consumer Behavior
 
 - Each application declares and binds a quorum queue.
-- Check version for compatibility.
 - Respect optimistic concurrency using the version field if applicable.
