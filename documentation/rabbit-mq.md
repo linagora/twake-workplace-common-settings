@@ -59,7 +59,7 @@ This message is consumed by backend services responsible for updating their cach
 | `first_name`   | string | User's first name.                                |
 | `email`        | string | User's email address.                             |
 | `phone`        | string | User's phone number in international format.      |
-| `matrix_id`    | string | User's Matrix ID.                                 |
+| `matrix_id`    | string | User's Matrix ID.  (can be null)                  |
 | `display_name` | string | Full display name to show in UIs.                 |
 
 ## Expected Consumer Behavior
