@@ -25,7 +25,7 @@ export const authenticate = async (event: RequestEvent): Promise<void> => {
 
 	if (accessToken) {
 		if (isProtectedApi(pathname)) {
-			if (accessToken === env.SECRET_API_KEY) {
+			if (accessToken !== env.SECRET_API_KEY) {
 				logger.warn('Invalid API key', { pathname });
 				return;
 			}
