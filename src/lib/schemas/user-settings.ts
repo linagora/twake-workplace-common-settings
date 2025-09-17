@@ -13,7 +13,7 @@ export const userSettingsPayloadSchema = z.object({
 	last_name: z.string(),
 	first_name: z.string(),
 	email: z.string().email(),
-	phone: z.string().refine(isPhoneValid),
+	phone: z.string().refine(isPhoneValid).optional(),
 	matrix_id: z.string().optional().nullable(),
 	display_name: z.string()
 });
