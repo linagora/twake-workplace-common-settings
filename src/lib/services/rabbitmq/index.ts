@@ -12,8 +12,11 @@ class RabbitMQService {
 	private readonly exchangeType: string = 'topic';
 	private readonly MAX_RETRIES: number;
 	private readonly RETRY_DELAY: number;
+	private readonly CONNECTION_RETRY_DELAY: number;
 	private connection!: amqp.ChannelModel;
 	private channel!: amqp.ConfirmChannel;
+	private connected: boolean = false;
+	private reconnecting: boolean = false;
 
 	/**
 	 * @constructor
@@ -36,6 +39,8 @@ class RabbitMQService {
 		this.url = env.RABBITMQ_URL ?? DEFAULT_RABBITMQ_URL;
 		this.MAX_RETRIES = parseInt(env.RABBITMQ_MAX_RETRIES) || DEFAULT_RABBITMQ_MAX_RETRIES;
 		this.RETRY_DELAY = parseInt(env.RABBITMQ_RETRY_DELAY) || DEFAULT_RABBITMQ_MAX_RETRIES;
+		this.CONNECTION_RETRY_DELAY =
+			parseInt(env.RABBITMQ_CONNECTION_RETRY_DELAY) || DEFAULT_RABBITMQ_MAX_RETRIES;
 	}
 
 	/**
@@ -47,9 +52,7 @@ class RabbitMQService {
 	 * ```
 	 */
 	public init = async () => {
-		if (this.channel && this.connection) {
-			this.logger.info('RabbitMQ already initialized');
-
+		if (this.connected) {
 			return;
 		}
 
@@ -58,15 +61,21 @@ class RabbitMQService {
 			this.channel = await this.connection.createConfirmChannel();
 
 			this.connection.on('error', (error) => {
+				this.connected = false;
 				this.logger.error('Connection error', { error });
 			});
 
 			this.connection.on('close', () => {
+				this.connected = false;
 				this.logger.warn('Connection closed');
+				this.reconnectWithRetry();
 			});
 
+			this.connected = true;
+			this.reconnecting = false;
 			this.logger.info('Connected to RabbitMQ');
 		} catch (error) {
+			this.connected = false;
 			this.logger.error('Failed to connect to RabbitMQ', { error });
 
 			throw Error('Failed to connect to RabbitMQ', { cause: error });
@@ -90,33 +99,35 @@ class RabbitMQService {
 		routingKey: string,
 		message: RabbitMQMessage
 	): Promise<void> => {
-		try {
-			if (!this.channel) {
-				this.logger.error('Channel is not initialized');
+		let attempts = 0;
 
-				throw Error('Channel is not initialized');
-			}
-
-			await this.channel.assertExchange(exchange, this.exchangeType, { durable: true });
-
-			const published = this.channel.publish(
-				exchange,
-				routingKey,
-				Buffer.from(JSON.stringify(message)),
-				{
-					persistent: true
+		while (true) {
+			try {
+				if (!this.connected) {
+					throw new Error('Not connected to RabbitMQ');
 				}
-			);
 
-			await this.channel.waitForConfirms();
+				await this.channel.assertExchange(exchange, this.exchangeType, { durable: true });
 
-			if (!published) {
-				throw new Error('Message not accepted');
+				const published = this.channel.publish(
+					exchange,
+					routingKey,
+					Buffer.from(JSON.stringify(message)),
+					{ persistent: true }
+				);
+
+				await this.channel.waitForConfirms();
+
+				if (!published) {
+					throw new Error('Message not accepted');
+				}
+
+				return;
+			} catch (error) {
+				attempts++;
+				this.logger.warn(`Publish attempt ${attempts} failed`, { error });
+				await new Promise((resolve) => setTimeout(resolve, this.CONNECTION_RETRY_DELAY));
 			}
-		} catch (error) {
-			this.logger.error('Failed to publish message', { error });
-
-			throw error;
 		}
 	};
 
@@ -204,6 +215,29 @@ class RabbitMQService {
 			this.logger.error('Failed to close RabbitMQ connection', { error });
 
 			throw new Error('Failed to close connection', { cause: error });
+		}
+	};
+
+	/**
+	 * Reconnects with retry mechanism
+	 *
+	 * Keeps trying to reconnect until it succeeds
+	 *
+	 * @returns {Promise<void>}
+	 */
+	private reconnectWithRetry = async (): Promise<void> => {
+		if (this.reconnecting) return;
+		this.reconnecting = true;
+
+		let attempts = 0;
+		while (!this.connected) {
+			try {
+				await this.init();
+			} catch (error) {
+				attempts++;
+				this.logger.warn(`Reconnect attempt ${attempts} failed`, { error });
+				await new Promise((resolve) => setTimeout(resolve, this.CONNECTION_RETRY_DELAY));
+			}
 		}
 	};
 
