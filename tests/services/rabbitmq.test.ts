@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi, beforeEach } from 'vitest';
 import rabbitmq from '$services/rabbitmq';
 import type { RabbitMQMessage } from '$types';
 
@@ -51,7 +51,8 @@ vi.mock('amqplib', () => ({
 
 vi.mock('$env/dynamic/private', () => ({
 	env: {
-		RABBITMQ_URL: 'amqp://localhost'
+		RABBITMQ_URL: 'amqp://localhost',
+		RABBITMQ_CONNECTION_RETRY_DELAY: 100
 	}
 }));
 
@@ -60,7 +61,7 @@ vi.mock('$services/logger', () => ({
 		getSubLogger: () => ({
 			info: vi.fn(),
 			error: vi.fn(),
-      warn: vi.fn(),
+			warn: vi.fn()
 		})
 	}
 }));
@@ -69,7 +70,6 @@ describe('the RabbitMQ Service', () => {
 	beforeAll(async () => {
 		await rabbitmq.init();
 	});
-
 	describe('the init function', () => {
 		it('should initialize connection and channel', async () => {
 			expect(connectionMock).toHaveBeenCalledOnce();
@@ -96,22 +96,13 @@ describe('the RabbitMQ Service', () => {
 			expect(waitForConfirms).toHaveBeenCalledOnce();
 		});
 
-		it('should throw an error if the message is not published', async () => {
-			publish.mockReturnValueOnce(false);
+		it('should retry when publishing fails', async () => {
+      vi.clearAllMocks()
+			publish.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
-			await expect(rabbitmq.publish('settings', 'routingKey', 'message')).rejects.toThrow(
-				'Message not accepted'
-			);
-		});
+			await rabbitmq.publish('settings', 'routingKey', 'message');
 
-		it('should throw an error if something wrong happened when publishing the message', async () => {
-			publish.mockImplementationOnce(() => {
-				throw new Error('Something went wrong');
-			});
-
-			await expect(rabbitmq.publish('settings', 'routingKey', 'message')).rejects.toThrow(
-				'Something went wrong'
-			);
+			expect(publish).toHaveBeenCalledTimes(2);
 		});
 	});
 
