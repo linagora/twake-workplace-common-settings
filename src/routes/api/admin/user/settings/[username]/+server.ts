@@ -76,7 +76,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		await settingsService.updateUserSettings(username, body);
-		await settingsService.sendSettingsUpdateNotification(username);
+		settingsService.sendSettingsUpdateNotification(username);
 
 		return new Response('ok', { status: 200 });
 	} catch (err) {
