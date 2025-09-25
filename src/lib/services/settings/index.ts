@@ -237,6 +237,22 @@ class SettingsService {
 	}
 
 	/**
+	 * Checks if user settings exists
+	 *
+	 * @param {string} nickname - the user's nickname
+	 * @returns {Promise<boolean>} - a promise that resolves to true if user settings exist, false otherwise
+	 */
+	public async userSettingsExist(nickname: string): Promise<boolean> {
+		this.logger.info(`Checking if user settings exist for ${nickname}`);
+
+		const userSettings = await db.query.userSettingsTable.findFirst({
+			where: eq(userSettingsTable.nickname, nickname)
+		});
+
+    return !!userSettings;
+	}
+
+	/**
 	 * Creates a new user settings entry.
 	 * Throws if creation fails.
 	 *
@@ -253,7 +269,7 @@ class SettingsService {
 	): Promise<void> => {
 		this.logger.info(`Creating user settings for nickname: ${nickname}`);
 
-		const existingSettings = await this.getUserSettings(nickname);
+		const existingSettings = await this.userSettingsExist(nickname);
 
 		if (existingSettings) {
 			this.logger.info(`User settings already exist for ${nickname}`);
