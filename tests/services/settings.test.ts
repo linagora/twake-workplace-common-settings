@@ -38,7 +38,7 @@ vi.mock('$env/dynamic/private', () => ({
 		RABBITMQ_EXCHANGE: 'exchange',
 		RABBITMQ_SETTINGS_INPUT_QUEUE: 'queue',
 		RABBITMQ_SETTINGS_INPUT_ROUTING_KEY: 'inKey',
-		RABBITMQ_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey',
+		RABBITMQ_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey'
 	}
 }));
 
@@ -163,9 +163,41 @@ describe('Settings service', () => {
 		});
 	});
 
+	describe('the userSettingsExist method', () => {
+		it('should return true if the user settings exist', async () => {
+			mockFindFirst.mockResolvedValue({
+				nickname: 'testuser',
+				version: 1,
+				settings: {
+					language: 'en',
+					timezone: 'UTC',
+					avatar: 'https://example.com/avatar.png',
+					last_name: 'Doe',
+					first_name: 'John',
+					email: 'john@example.com',
+					phone: '+1234567890',
+					matrix_id: null,
+					display_name: 'John Doe'
+				}
+			});
+
+			const result = await settingsService.userSettingsExist('testuser');
+
+			expect(result).toBe(true);
+		});
+
+		it('should return false if the user settings do not exist', async () => {
+			mockFindFirst.mockResolvedValue(undefined);
+
+			const result = await settingsService.userSettingsExist('testuser');
+
+			expect(result).toBe(false);
+		});
+	});
+
 	describe('the createUserSettings method', () => {
 		it('should inserts settings into DB', async () => {
-      mockFindFirst.mockResolvedValue(undefined);
+			mockFindFirst.mockResolvedValue(undefined);
 			mockInsertValues.mockResolvedValue(undefined);
 
 			const payload = {
@@ -195,25 +227,25 @@ describe('Settings service', () => {
 			await expect(settingsService.createUserSettings('testuser', {} as any, 1)).rejects.toThrow();
 		});
 
-    it('should throw an error if the user already has settings', async () => {
-      mockFindFirst.mockResolvedValue({
-        nickname: 'testuser',
-        version: 1,
-        settings: {
-          language: 'en',
-          timezone: 'UTC',
-          avatar: 'https://example.com/avatar.png',
-          last_name: 'Doe',
-          first_name: 'John',
-          email: 'john@example.com',
-          phone: '+1234567890',
-          matrix_id: null,
-          display_name: 'John Doe'
-        }
-      });
+		it('should throw an error if the user already has settings', async () => {
+			mockFindFirst.mockResolvedValue({
+				nickname: 'testuser',
+				version: 1,
+				settings: {
+					language: 'en',
+					timezone: 'UTC',
+					avatar: 'https://example.com/avatar.png',
+					last_name: 'Doe',
+					first_name: 'John',
+					email: 'john@example.com',
+					phone: '+1234567890',
+					matrix_id: null,
+					display_name: 'John Doe'
+				}
+			});
 
-      await expect(settingsService.createUserSettings('testuser', {} as any, 1)).rejects.toThrow();
-    })
+			await expect(settingsService.createUserSettings('testuser', {} as any, 1)).rejects.toThrow();
+		});
 	});
 
 	describe('the updateUserSettings method', () => {
@@ -428,7 +460,7 @@ describe('Settings service', () => {
 		});
 	});
 
-  describe('the synchronizeSettings method', () => {
+	describe('the synchronizeSettings method', () => {
 		it('should batch fetch user settings', async () => {
 			limitMock.mockResolvedValue([]);
 
