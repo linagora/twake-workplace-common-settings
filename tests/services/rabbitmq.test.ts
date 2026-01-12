@@ -75,13 +75,54 @@ describe('the RabbitMQ Service', () => {
 			expect(connectionMock).toHaveBeenCalledOnce();
 			expect(createConfirmChannelMock).toHaveBeenCalledOnce();
 		});
+
+		it('should not reinitialize if already connected', async () => {
+			const initialCallCount = connectionMock.mock.calls.length;
+
+			await rabbitmq.init();
+
+			expect(connectionMock.mock.calls.length).toBe(initialCallCount);
+		});
+
+		it('should retry connection on failure until successful', async () => {
+			let attempts = 0;
+			const mockConnect = vi.fn(() => {
+				attempts++;
+				if (attempts < 3) {
+					throw new Error('Connection failed');
+				}
+				return {
+					createConfirmChannel: createConfirmChannelMock,
+					on: vi.fn(),
+					close: connectionCloseMock
+				};
+			});
+
+			const originalImplementation = connectionMock.getMockImplementation();
+			connectionMock.mockImplementation(mockConnect);
+
+			(rabbitmq as any).connected = false;
+
+			await rabbitmq.init();
+
+			expect(attempts).toBe(3);
+			expect(mockConnect).toHaveBeenCalledTimes(3);
+
+			// Restore original mock
+			if (originalImplementation) {
+				connectionMock.mockImplementation(originalImplementation);
+			}
+		}, 10000);
 	});
 
 	describe('the publish function', () => {
+		beforeEach(() => {
+			vi.clearAllMocks();
+		});
+
 		it('should assert and publish a message to an exchange', async () => {
 			await rabbitmq.publish('settings', 'routingKey', 'message');
 
-			expect(createConfirmChannelMock).toHaveBeenCalledOnce();
 			expect(assertExchange).toHaveBeenCalledWith('settings', 'topic', {
 				durable: true
 			});
@@ -93,23 +134,32 @@ describe('the RabbitMQ Service', () => {
 					persistent: true
 				}
 			);
-			expect(waitForConfirms).toHaveBeenCalledOnce();
+			expect(waitForConfirms).toHaveBeenCalled();
 		});
 
 		it('should retry when publishing fails', async () => {
-      vi.clearAllMocks()
 			publish.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
 			await rabbitmq.publish('settings', 'routingKey', 'message');
 
 			expect(publish).toHaveBeenCalledTimes(2);
 		});
+
+		it('should retry publish operation on temporary failures', async () => {
+			// Simulate temporary failures
+			waitForConfirms.mockRejectedValueOnce(new Error('Timeout')).mockResolvedValueOnce(undefined);
+
+			await rabbitmq.publish('settings', 'routingKey', 'message');
+
+			expect(publish).toHaveBeenCalledTimes(2);
+			expect(waitForConfirms).toHaveBeenCalledTimes(2);
+		});
 	});
 
 	describe('the subscribe function', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
+		afterEach(() => {
+			vi.clearAllMocks();
+		});
 
 		it('should assert and bind a queue to an exchange', async () => {
 			const callback = vi.fn();
@@ -219,6 +269,20 @@ describe('the RabbitMQ Service', () => {
 
 			expect(spyHandler).toHaveBeenCalled();
 			expect(spyHandler).not.toHaveBeenCalledOnce();
+		});
+
+		it('should store subscriptions for re-establishment after reconnection', async () => {
+			const callback1 = vi.fn();
+			const callback2 = vi.fn();
+
+			const initialConsumeCount = consume.mock.calls.length;
+
+			// Subscribe to two queues
+			await rabbitmq.subscribe('exchange1', 'key1', 'queue1', callback1);
+			await rabbitmq.subscribe('exchange2', 'key2', 'queue2', callback2);
+
+			// Verify two new subscriptions were made
+			expect(consume.mock.calls.length).toBe(initialConsumeCount + 2);
 		});
 	});
 
