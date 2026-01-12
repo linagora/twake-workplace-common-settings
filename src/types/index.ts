@@ -41,3 +41,10 @@ export interface UserSettingsEntry {
 	version: number;
 	settings: Partial<Nullable<UserSettings>>;
 }
+
+export interface Subscription {
+  exchange: string;
+  routingKey: string;
+  queue: string;
+  handler: RabbitMQMessageHandler;
+}

@@ -3,7 +3,7 @@ import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import LoggerService, { type GenericLogger } from '$services/logger';
 import { DEFAULT_RABBITMQ_MAX_RETRIES, DEFAULT_RABBITMQ_URL } from '$utils/config';
-import type { RabbitMQMessage, RabbitMQMessageHandler } from '$types';
+import type { RabbitMQMessage, RabbitMQMessageHandler, Subscription } from '$types';
 
 class RabbitMQService {
 	public readonly name = 'rabbitmq';
@@ -17,6 +17,7 @@ class RabbitMQService {
 	private channel!: amqp.ConfirmChannel;
 	private connected: boolean = false;
 	private reconnecting: boolean = false;
+	private subscriptions: Subscription[] = [];
 
 	/**
 	 * @constructor
@@ -46,6 +47,8 @@ class RabbitMQService {
 	/**
 	 * Initializes the rabbitmq service
 	 *
+	 * Retries until successful connection is established
+	 *
 	 * @example
 	 * ```ts
 	 * await rabbitmq.init();
@@ -56,29 +59,32 @@ class RabbitMQService {
 			return;
 		}
 
-		try {
-			this.connection = await amqp.connect(this.url);
-			this.channel = await this.connection.createConfirmChannel();
+		let attempts = 0;
+		while (!this.connected) {
+			try {
+				this.connection = await amqp.connect(this.url);
+				this.channel = await this.connection.createConfirmChannel();
 
-			this.connection.on('error', (error) => {
+				this.connection.on('error', (error) => {
+					this.connected = false;
+					this.logger.error('Connection error', error);
+				});
+
+				this.connection.on('close', () => {
+					this.connected = false;
+					this.logger.warn('Connection closed');
+					this.reconnectWithRetry();
+				});
+
+				this.connected = true;
+				this.reconnecting = false;
+				this.logger.info('Connected to RabbitMQ');
+			} catch (error) {
+				attempts++;
 				this.connected = false;
-				this.logger.error('Connection error', { error });
-			});
-
-			this.connection.on('close', () => {
-				this.connected = false;
-				this.logger.warn('Connection closed');
-				this.reconnectWithRetry();
-			});
-
-			this.connected = true;
-			this.reconnecting = false;
-			this.logger.info('Connected to RabbitMQ');
-		} catch (error) {
-			this.connected = false;
-			this.logger.error('Failed to connect to RabbitMQ', { error });
-
-			throw Error('Failed to connect to RabbitMQ', { cause: error });
+				this.logger.warn(`Connection attempt ${attempts} failed, retrying...`, error);
+				await new Promise((resolve) => setTimeout(resolve, this.CONNECTION_RETRY_DELAY));
+			}
 		}
 	};
 
@@ -104,7 +110,7 @@ class RabbitMQService {
 		while (true) {
 			try {
 				if (!this.connected) {
-					throw new Error('Not connected to RabbitMQ');
+					await this.reconnectWithRetry();
 				}
 
 				await this.channel.assertExchange(exchange, this.exchangeType, { durable: true });
@@ -125,7 +131,7 @@ class RabbitMQService {
 				return;
 			} catch (error) {
 				attempts++;
-				this.logger.warn(`Publish attempt ${attempts} failed`, { error });
+				this.logger.warn(`Publish attempt ${attempts} failed`, error);
 				await new Promise((resolve) => setTimeout(resolve, this.CONNECTION_RETRY_DELAY));
 			}
 		}
@@ -152,13 +158,17 @@ class RabbitMQService {
 		queue: string,
 		handler: RabbitMQMessageHandler
 	): Promise<void> => {
+		const existingIndex = this.subscriptions.findIndex((s) => s.queue === queue);
+		if (existingIndex === -1) {
+			this.subscriptions.push({ exchange, routingKey, queue, handler });
+		}
+
+		if (!this.connected || !this.channel) {
+			this.logger.error('Cannot subscribe: RabbitMQ not connected');
+			throw new Error('RabbitMQ not connected');
+		}
+
 		try {
-			if (!this.channel) {
-				this.logger.error('Channel is not initialized');
-
-				throw Error('Channel is not initialized');
-			}
-
 			const dlxExchange = `${exchange}.dlx`;
 			const dlqQueue = `${queue}.dlq`;
 			const dlqRoutingKey = `${routingKey}.dead`;
@@ -191,7 +201,7 @@ class RabbitMQService {
 
 			this.logger.info(`Subscribed to queue ${queue}`);
 		} catch (error) {
-			this.logger.error('Failed to subscribe to queue', { error });
+			this.logger.error('Failed to subscribe to queue', error);
 
 			throw new Error('Failed to subscribe to queue', { cause: error });
 		}
@@ -212,7 +222,7 @@ class RabbitMQService {
 
 			this.logger.info('RabbitMQ connection closed');
 		} catch (error) {
-			this.logger.error('Failed to close RabbitMQ connection', { error });
+			this.logger.error('Failed to close RabbitMQ connection', error);
 
 			throw new Error('Failed to close connection', { cause: error });
 		}
@@ -229,14 +239,56 @@ class RabbitMQService {
 		if (this.reconnecting) return;
 		this.reconnecting = true;
 
-		let attempts = 0;
-		while (!this.connected) {
+		await this.init();
+		await this.resubscribeAll();
+	};
+
+	/**
+	 * Re-establishes all subscriptions after reconnection
+	 *
+	 * @returns {Promise<void>}
+	 */
+	private resubscribeAll = async (): Promise<void> => {
+		if (this.subscriptions.length === 0) {
+			return;
+		}
+
+		this.logger.info(`Re-establishing ${this.subscriptions.length} subscription(s)`);
+
+		for (const { exchange, routingKey, queue, handler } of this.subscriptions) {
 			try {
-				await this.init();
+				const dlxExchange = `${exchange}.dlx`;
+				const dlqQueue = `${queue}.dlq`;
+				const dlqRoutingKey = `${routingKey}.dead`;
+
+				await this.channel.assertExchange(dlxExchange, this.exchangeType, { durable: true });
+				await this.channel.assertQueue(dlqQueue, { durable: true });
+				await this.channel.bindQueue(dlqQueue, dlxExchange, dlqRoutingKey);
+
+				await this.channel.assertExchange(exchange, this.exchangeType, { durable: true });
+				await this.channel.assertQueue(queue, {
+					durable: true,
+					deadLetterExchange: dlxExchange,
+					deadLetterRoutingKey: dlqRoutingKey
+				});
+				await this.channel.bindQueue(queue, exchange, routingKey);
+
+				await this.channel.consume(
+					queue,
+					async (message) => {
+						if (!message) {
+							this.logger.error('Invalid message');
+							return;
+						}
+
+						await this.handleWithRetry(message, handler);
+					},
+					{ noAck: false }
+				);
+
+				this.logger.info(`Re-subscribed to queue ${queue}`);
 			} catch (error) {
-				attempts++;
-				this.logger.warn(`Reconnect attempt ${attempts} failed`, { error });
-				await new Promise((resolve) => setTimeout(resolve, this.CONNECTION_RETRY_DELAY));
+				this.logger.error(`Failed to re-subscribe to queue ${queue}`, error);
 			}
 		}
 	};
