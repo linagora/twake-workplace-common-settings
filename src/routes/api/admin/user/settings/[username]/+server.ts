@@ -70,7 +70,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		const parsed = await updateUserSettingsSchema.safeParseAsync(body);
 
 		if (!parsed.success) {
-			logger.error('Invalid data', { error: parsed.error.errors });
+			logger.error('Invalid data', parsed.error.errors);
 
 			throw error(400, 'Invalid data');
 		}

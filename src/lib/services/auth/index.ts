@@ -66,7 +66,7 @@ class AuthService {
 
 			return sub;
 		} catch (error) {
-			this.logger.error('Failed to resolve OIDC user', { error });
+			this.logger.error('Failed to resolve OIDC user', error);
 
 			return null;
 		}

@@ -40,7 +40,7 @@ class BootstrapService {
 				this.logger.info(`Initializing ${service.name} service`);
 				await service.init();
 			} catch (error) {
-        this.logger.error(`Failed to initialize ${service.name} service`, { error });
+        this.logger.error(`Failed to initialize ${service.name} service`, error);
       }
 		}
 

@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		try {
 			body = (await request.json()) as SettingsMessage;
 		} catch (err) {
-			logger.error('Invalid body', { error: err });
+			logger.error('Invalid body', err);
 
 			throw error(400, 'Invalid JSON body');
 		}
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const parsed = await createUserSettingsSchema.safeParseAsync(body);
 
 		if (!parsed.success) {
-			logger.error('Invalid data', { error: parsed.error.errors });
+			logger.error('Invalid data', parsed.error.errors);
 
 			throw error(400, 'Invalid data');
 		}
@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		return new Response('ok', { status: 200 });
 	} catch (err) {
-    logger.error('Failed to create user settings', err);
+		logger.error('Failed to create user settings', err);
 
 		throw err;
 	}

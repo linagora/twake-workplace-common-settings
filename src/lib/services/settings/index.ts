@@ -81,7 +81,7 @@ class SettingsService {
 
 			this.logger.info('Settings service initialized');
 		} catch (err) {
-			this.logger.error('Failed to initialize settings service', { err });
+			this.logger.error('Failed to initialize settings service', err);
 
 			throw new Error('Failed to initialize settings service', { cause: err });
 		}
