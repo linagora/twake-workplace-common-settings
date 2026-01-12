@@ -70,9 +70,9 @@ class RabbitMQService {
 					this.logger.error('Connection error', error);
 				});
 
-				this.connection.on('close', () => {
+				this.connection.on('close', (error) => {
 					this.connected = false;
-					this.logger.warn('Connection closed');
+					this.logger.warn('Connection closed', error);
 					this.reconnectWithRetry();
 				});
 
