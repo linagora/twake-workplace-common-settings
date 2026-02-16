@@ -1,9 +1,36 @@
+import { timingSafeEqual } from 'crypto';
 import { env } from '$env/dynamic/private';
 import type { RequestEvent } from '@sveltejs/kit';
 import LoggerService, { type GenericLogger } from '$services/logger';
 import authService from '$services/auth';
 import { GetRequestAccessToken } from '$utils';
 import { OIDC_PROTECTED_APIS, PROTECTED_APIS } from '$utils/config';
+
+/**
+ * Performs a timing-safe comparison of two strings to prevent timing attacks.
+ * This function ensures constant-time comparison regardless of where strings differ.
+ *
+ * @param {string} provided - the string provided by the user/request
+ * @param {string} expected - the expected/stored secret string
+ * @returns {boolean} - true if strings match, false otherwise
+ * @example
+ * isValidSecret('user-provided-key', 'actual-secret-key');
+ */
+const isValidSecret = (provided: string, expected: string): boolean => {
+	if (!provided || !expected) return false;
+
+	const providedBuffer = Buffer.from(provided);
+	const expectedBuffer = Buffer.from(expected);
+
+	if (providedBuffer.length !== expectedBuffer.length) {
+		// Compare against expected anyway to maintain constant time
+		// This prevents length-based timing attacks
+		timingSafeEqual(expectedBuffer, expectedBuffer);
+		return false;
+	}
+
+	return timingSafeEqual(providedBuffer, expectedBuffer);
+};
 
 /**
  * Logger instance for login actions
@@ -25,7 +52,7 @@ export const authenticate = async (event: RequestEvent): Promise<void> => {
 
 	if (accessToken) {
 		if (isProtectedApi(pathname)) {
-			if (accessToken !== env.SECRET_API_KEY) {
+			if (!isValidSecret(accessToken, env.SECRET_API_KEY)) {
 				logger.warn('Invalid API key', { pathname });
 				return;
 			}
