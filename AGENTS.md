@@ -9,6 +9,7 @@ Twake Workplace Common Settings is a SvelteKit-based microservice that manages u
 ## Core Architecture
 
 ### Technology Stack
+
 - **Framework**: SvelteKit 2 with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
 - **Message Queue**: RabbitMQ (AMQP)
@@ -58,18 +59,20 @@ The service acts as both consumer and producer:
 **Publishes**: `user.settings.updated` messages to notify other services of changes
 
 Message format (`SettingsMessage` type):
+
 ```typescript
 {
-  source: string;           // Origin service identifier
-  nickname: string;         // User identifier
-  request_id: string;       // Request tracking ID
-  timestamp: number;        // Unix timestamp
-  payload: UserSettings;    // Settings data (partial)
-  version: number;          // Version for optimistic locking
+	source: string; // Origin service identifier
+	nickname: string; // User identifier
+	request_id: string; // Request tracking ID
+	timestamp: number; // Unix timestamp
+	payload: UserSettings; // Settings data (partial)
+	version: number; // Version for optimistic locking
 }
 ```
 
 Key features:
+
 - Topic exchange with configurable routing keys
 - Dead letter queues (DLQ) for failed messages
 - Automatic retry with configurable attempts and delays
@@ -89,6 +92,7 @@ See `documentation/rabbit-mq.md` for message format details.
 ## Common Commands
 
 ### Development
+
 ```bash
 npm run dev               # Start dev server with hot reload
 npm run check             # Type check with svelte-check
@@ -96,24 +100,28 @@ npm run check:watch       # Type check in watch mode
 ```
 
 ### Build & Preview
+
 ```bash
 npm run build            # Production build
 npm run preview          # Preview production build
 ```
 
 ### Testing
+
 ```bash
 npm run test             # Run tests once
 npm run test:unit        # Run tests in watch mode
 ```
 
 ### Linting & Formatting
+
 ```bash
 npm run lint             # Check code style (Prettier + ESLint)
 npm run format           # Auto-fix formatting issues
 ```
 
 ### Database Operations
+
 ```bash
 npm run db:start         # Start PostgreSQL + RabbitMQ via Docker Compose
 npm run db:push          # Push schema changes to database
@@ -135,6 +143,7 @@ Required environment variables (see `.env.example`):
 - `IDENTITY_PROVIDER_URL` - OIDC provider URL for token validation
 
 Optional RabbitMQ tuning:
+
 - `RABBITMQ_MAX_RETRIES` - Max message processing attempts (default: 3)
 - `RABBITMQ_RETRY_DELAY` - Delay between retries in ms (default: 1000)
 - `RABBITMQ_CONNECTION_RETRY_DELAY` - Delay between reconnection attempts in ms (default: 5000)
@@ -147,15 +156,15 @@ The `UserSettings` type (`src/types/index.ts`) defines the available settings fi
 
 ```typescript
 interface UserSettings {
-  language: string;
-  timezone: string;
-  avatar: string;
-  last_name: string;
-  first_name: string;
-  email: string;
-  phone: string;
-  matrix_id: string;
-  display_name: string;
+	language: string;
+	timezone: string;
+	avatar: string;
+	last_name: string;
+	first_name: string;
+	email: string;
+	phone: string;
+	matrix_id: string;
+	display_name: string;
 }
 ```
 
@@ -164,6 +173,7 @@ Only certain fields are editable by users via OIDC-authenticated endpoints: `lan
 ### User Settings Validation
 
 Zod schemas in `src/lib/schemas/user-settings.ts` validate all incoming data:
+
 - Phone numbers must pass E.164 validation (via `validator` library)
 - Email must be valid email format
 - Avatar must be valid URL
@@ -173,6 +183,7 @@ Zod schemas in `src/lib/schemas/user-settings.ts` validate all incoming data:
 ### Settings Synchronization
 
 The `/api/admin/user/settings/sync` endpoints support batch synchronization:
+
 - Processes users in batches (`SYNC_BATCH_SIZE` = 50 users per batch)
 - Adds delays between batches (`SYNC_PROCESS_DELAY` = 500ms) to avoid overwhelming RabbitMQ
 - Publishes all stored settings to the output routing key
@@ -180,6 +191,7 @@ The `/api/admin/user/settings/sync` endpoints support batch synchronization:
 ### Connection Resilience
 
 RabbitMQ service includes:
+
 - Automatic reconnection on connection loss
 - Retry logic for publishing with infinite attempts
 - Consumer retry with configurable max attempts before DLQ
@@ -188,6 +200,7 @@ RabbitMQ service includes:
 ### Error Handling
 
 Services use structured logging with context. API routes follow SvelteKit conventions:
+
 - Use `error()` helper from `@sveltejs/kit` for HTTP errors
 - Return appropriate status codes (400, 401, 404, 409, 500)
 - Log errors with relevant context for debugging
@@ -201,6 +214,7 @@ Services use structured logging with context. API routes follow SvelteKit conven
 5. Run tests: `npm run test`
 
 When adding new features:
+
 - Add types to `src/types/index.ts`
 - Update schemas in `src/lib/schemas/` for validation
 - Add tests in `tests/` directory matching source structure

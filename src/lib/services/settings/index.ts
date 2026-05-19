@@ -249,7 +249,7 @@ class SettingsService {
 			where: eq(userSettingsTable.nickname, nickname)
 		});
 
-    return !!userSettings;
+		return !!userSettings;
 	}
 
 	/**

@@ -24,24 +24,24 @@ class BootstrapService {
 		this.services = [rabbitmq, settings];
 	}
 
-  /**
-   * Initializes the services
-   *
-   * @example
-   * ```ts
-   * await bootstrapService.init();
-   * ```
-   */
+	/**
+	 * Initializes the services
+	 *
+	 * @example
+	 * ```ts
+	 * await bootstrapService.init();
+	 * ```
+	 */
 	public init = async (): Promise<void> => {
 		this.logger.info('Initializing services');
 
 		for (const service of this.services) {
-      try {
+			try {
 				this.logger.info(`Initializing ${service.name} service`);
 				await service.init();
 			} catch (error) {
-        this.logger.error(`Failed to initialize ${service.name} service`, error);
-      }
+				this.logger.error(`Failed to initialize ${service.name} service`, error);
+			}
 		}
 
 		this.logger.info('Services initialized');
