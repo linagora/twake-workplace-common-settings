@@ -1,21 +1,21 @@
 html,
 body {
-  background-color: #222;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
+	background-color: #222;
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
 }
 
 main {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100dvh;
-  margin: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100dvh;
+	margin: 0;
 }
 
 img {
-  max-width: 10%;
-  width: 10%;
-  height: auto;
+	max-width: 10%;
+	width: 10%;
+	height: auto;
 }

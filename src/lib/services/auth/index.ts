@@ -24,7 +24,7 @@ class AuthService {
 			}
 		}
 
-    const url = getUrl(env.IDENTITY_PROVIDER_URL);
+		const url = getUrl(env.IDENTITY_PROVIDER_URL);
 
 		this.oidcUserInfoUrl = concatUrl(url, OIDC_USERINFO_PATH);
 	}

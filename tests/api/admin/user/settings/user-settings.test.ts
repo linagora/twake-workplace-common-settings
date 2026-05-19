@@ -302,31 +302,31 @@ describe('POST /api/admin/user/settings', () => {
 		expect(text).toBe('ok');
 	});
 
-  it('should not creater user settings if phone is not valid', async () => {
-    const body = {
-      source: 'provision',
-      nickname: validUsername,
-      request_id: 'XXXX',
-      timestamp: Date.now(),
-      version: 1,
-      payload: {
-        language: 'en',
-        timezone: 'UTC',
-        avatar: 'https://example.com/avatar.png',
-        last_name: 'Doe',
-        first_name: 'John',
-        email: 'john@example.com',
-        phone: 'invalid-phone-number',
-        matrix_id: '@user:server.com',
-        display_name: 'John Doe'
-      }
-    };
+	it('should not creater user settings if phone is not valid', async () => {
+		const body = {
+			source: 'provision',
+			nickname: validUsername,
+			request_id: 'XXXX',
+			timestamp: Date.now(),
+			version: 1,
+			payload: {
+				language: 'en',
+				timezone: 'UTC',
+				avatar: 'https://example.com/avatar.png',
+				last_name: 'Doe',
+				first_name: 'John',
+				email: 'john@example.com',
+				phone: 'invalid-phone-number',
+				matrix_id: '@user:server.com',
+				display_name: 'John Doe'
+			}
+		};
 
-    const event: any = makeRequestEvent({
-      user: 'XXX',
-      body
-    });
+		const event: any = makeRequestEvent({
+			user: 'XXX',
+			body
+		});
 
-    await expect(POST(event)).rejects.toThrow(expect.toSatisfy((err) => err.status === 400));
-  })
+		await expect(POST(event)).rejects.toThrow(expect.toSatisfy((err) => err.status === 400));
+	});
 });

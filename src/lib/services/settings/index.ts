@@ -6,6 +6,7 @@ import loggerService, { type GenericLogger } from '$services/logger';
 import rabbitMQService from '$services/rabbitmq';
 import { userSettingsTable } from '$db/schema';
 import { updateUserSettingsSchema } from '$lib/schemas/user-settings';
+import type { RabbitMQMessage } from '@linagora/rabbitmq-client';
 import type {
 	Nullable,
 	SettingsMessage,
@@ -90,13 +91,11 @@ class SettingsService {
 	/**
 	 * Handles update settings messages
 	 *
-	 * @param {SettingsMessage} message - the message to handle
+	 * @param {RabbitMQMessage} message - the raw message from the broker
 	 * @returns {Promise<void>} - a promise that resolves when the message is handled
 	 */
-	private handleUpdateSettingsMessage = async (message: SettingsMessage): Promise<void> => {
+	private handleUpdateSettingsMessage = async (message: RabbitMQMessage): Promise<void> => {
 		try {
-			const { nickname } = message;
-
 			this.logger.info('handling update settings message', { message });
 
 			const messageValidationResult = await updateUserSettingsSchema.safeParseAsync(message);
@@ -109,8 +108,9 @@ class SettingsService {
 				throw new Error('Invalid user settings payload');
 			}
 
-			await this.updateUserSettings(nickname, message);
-			await this.sendSettingsUpdateNotification(nickname);
+			const validated = messageValidationResult.data as SettingsMessage;
+			await this.updateUserSettings(validated.nickname, validated);
+			await this.sendSettingsUpdateNotification(validated.nickname);
 		} catch (err) {
 			this.logger.error('Failed to handle settings update message', err);
 
@@ -249,7 +249,7 @@ class SettingsService {
 			where: eq(userSettingsTable.nickname, nickname)
 		});
 
-    return !!userSettings;
+		return !!userSettings;
 	}
 
 	/**

@@ -58,13 +58,13 @@ describe('the auth service', () => {
 			await expect(auth.resolveOidcUser('access_token')).resolves.toBeNull();
 		});
 
-    it('should return the sub claim from the userinfo response', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        json: () => Promise.resolve({ sub: '123' }),
-        ok: true
-      });
+		it('should return the sub claim from the userinfo response', async () => {
+			global.fetch = vi.fn().mockResolvedValue({
+				json: () => Promise.resolve({ sub: '123' }),
+				ok: true
+			});
 
-      await expect(auth.resolveOidcUser('access_token')).resolves.toEqual('123');
-    })
+			await expect(auth.resolveOidcUser('access_token')).resolves.toEqual('123');
+		});
 	});
 });
