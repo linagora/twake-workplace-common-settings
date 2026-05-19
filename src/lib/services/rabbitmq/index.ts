@@ -15,6 +15,11 @@ class RabbitMQService {
 	private logger: GenericLogger;
 	private client: RabbitMQClient;
 
+	/**
+	 * @constructor
+	 *
+	 * rabbitmq service constructor
+	 */
 	constructor() {
 		this.logger = LoggerService.getSubLogger({ name: this.name });
 
@@ -35,11 +40,50 @@ class RabbitMQService {
 		});
 	}
 
+	/**
+	 * Initializes the rabbitmq service
+	 *
+	 * @returns {Promise<void>} - resolves once the connection and confirm channel are ready.
+	 *
+	 * @example
+	 * ```ts
+	 * await rabbitmq.init();
+	 * ```
+	 */
 	public init = (): Promise<void> => this.client.init();
 
+	/**
+	 * Publishes a message to an exchange.
+	 *
+	 * @param {string} exchange - the exchange to publish to.
+	 * @param {string} routingKey - the routing key.
+	 * @param {object} message - the JSON-serializable message payload.
+	 * @returns {Promise<void>} - resolves after the broker confirms the message.
+	 *
+	 * @example
+	 * ```ts
+	 * await rabbitmq.publish('settings', 'user.settings.updated', { nickname: 'alice' });
+	 * ```
+	 */
 	public publish = (exchange: string, routingKey: string, message: object): Promise<void> =>
 		this.client.publish(exchange, routingKey, message as RabbitMQMessage);
 
+	/**
+	 * Subscribes to a queue, asserting the DLQ wiring on the way.
+	 *
+	 * @param {string} exchange - the exchange to bind to.
+	 * @param {string} routingKey - the routing key to bind with.
+	 * @param {string} queue - the queue to consume from.
+	 * @param {RabbitMQMessageHandler} handler - called with each parsed message.
+	 * @returns {Promise<void>} - resolves once the consumer is registered.
+	 *
+	 * @example
+	 * ```ts
+	 * await rabbitmq.subscribe('settings', 'user.settings.update', 'user.settings.input', async (msg) => {
+	 *   // ...
+	 * });
+	 * ```
+	 */
 	public subscribe = (
 		exchange: string,
 		routingKey: string,
@@ -47,6 +91,16 @@ class RabbitMQService {
 		handler: RabbitMQMessageHandler
 	): Promise<void> => this.client.subscribe(exchange, routingKey, queue, handler);
 
+	/**
+	 * Closes the rabbitmq connection and waits for in-flight handlers to drain.
+	 *
+	 * @returns {Promise<void>} - resolves once the channel and connection are closed.
+	 *
+	 * @example
+	 * ```ts
+	 * await rabbitmq.close();
+	 * ```
+	 */
 	public close = (): Promise<void> => this.client.close();
 }
 
