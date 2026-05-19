@@ -3,9 +3,6 @@ export interface Service {
 	name: string;
 }
 
-export type RabbitMQMessageHandler = (message: RabbitMQMessage) => Promise<void>;
-export type RabbitMQMessage = any;
-
 export interface SettingsMessage {
 	source: string;
 	nickname: string;
@@ -40,11 +37,4 @@ export interface UserSettingsEntry {
 	nickname: string;
 	version: number;
 	settings: Partial<Nullable<UserSettings>>;
-}
-
-export interface Subscription {
-  exchange: string;
-  routingKey: string;
-  queue: string;
-  handler: RabbitMQMessageHandler;
 }
