@@ -1,5 +1,5 @@
 import { RabbitMQClient } from '@linagora/rabbitmq-client';
-import type { RabbitMQMessage } from '@linagora/rabbitmq-client';
+import type { RabbitMQMessage, RabbitMQMessageHandler } from '@linagora/rabbitmq-client';
 import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import LoggerService, { type GenericLogger } from '$services/logger';
@@ -40,18 +40,12 @@ class RabbitMQService {
 	public publish = (exchange: string, routingKey: string, message: object): Promise<void> =>
 		this.client.publish(exchange, routingKey, message as RabbitMQMessage);
 
-	public subscribe = <T extends object = RabbitMQMessage>(
+	public subscribe = (
 		exchange: string,
 		routingKey: string,
 		queue: string,
-		handler: (message: T) => Promise<void>
-	): Promise<void> =>
-		this.client.subscribe(
-			exchange,
-			routingKey,
-			queue,
-			handler as (msg: RabbitMQMessage) => Promise<void>
-		);
+		handler: RabbitMQMessageHandler
+	): Promise<void> => this.client.subscribe(exchange, routingKey, queue, handler);
 
 	public close = (): Promise<void> => this.client.close();
 }
