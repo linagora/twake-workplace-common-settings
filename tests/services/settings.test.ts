@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import settingsService from '$services/settings';
 import type { SettingsMessage, UserSettingsResponse } from '$types';
 
@@ -92,6 +94,19 @@ vi.mock('$lib/schemas/user-settings', async () => {
 		createUserSettingsSchema: actual.createUserSettingsSchema
 	};
 });
+
+/**
+ * The settings column is now patched with a jsonb merge SQL expression rather
+ * than a plain object, so the mocked chain can't be asserted directly. These
+ * helpers grab the argument passed to `.set()` and compile it to real SQL so
+ * tests can verify which fields are merged and that it's a merge, not an
+ * overwrite.
+ */
+const lastUpdateSet = (): { settings: SQL; version: number } =>
+	mockUpdateSet.mock.calls.at(-1)?.[0] as { settings: SQL; version: number };
+
+const compileMerge = (settings: SQL): { sql: string; params: unknown[] } =>
+	new PgDialect().sqlToQuery(settings);
 
 describe('Settings service', () => {
 	beforeEach(() => {
@@ -265,7 +280,11 @@ describe('Settings service', () => {
 				}
 			});
 
-			mockUpdateSet.mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
+			mockUpdateSet.mockReturnValue({
+				where: vi
+					.fn()
+					.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ nickname: 'testuser' }]) })
+			});
 
 			const message: SettingsMessage = {
 				source: 'test',
@@ -280,19 +299,18 @@ describe('Settings service', () => {
 
 			await settingsService.updateUserSettings('testuser', message);
 
-			expect(mockUpdateSet).toHaveBeenCalledWith({
-				settings: {
-					language: 'fr',
-					timezone: 'UTC',
-					avatar: 'https://example.com/avatar.png',
-					last_name: 'Doe',
-					first_name: 'John',
-					email: 'john@example.com',
-					phone: '+1234567890',
-					display_name: 'John Doe'
-				},
-				version: 2
-			});
+			const setArg = lastUpdateSet();
+			// Settings is patched as a jsonb merge against the live row, not a
+			// full-blob overwrite built from the earlier read.
+			expect(setArg.settings).toBeInstanceOf(SQL);
+			expect(setArg.version).toBe(2);
+
+			const { sql, params } = compileMerge(setArg.settings);
+			expect(sql).toContain('|| ');
+			expect(sql).toContain('::jsonb');
+			// Only the changed editable field is merged; untouched fields are left
+			// to the database's current value.
+			expect(params).toEqual(['{"language":"fr"}']);
 		});
 
 		it('should throw an error if user settings are not found', async () => {
@@ -343,6 +361,43 @@ describe('Settings service', () => {
 			await expect(settingsService.updateUserSettings('testuser', message)).rejects.toThrow();
 		});
 
+		it('should throw a conflict when the atomic update affects no rows', async () => {
+			// App-level pre-check passes (incoming version 2 > stored 1), but a
+			// concurrent writer advances the stored version in the gap before our
+			// write, so the conditional UPDATE matches no rows.
+			mockFindFirst.mockResolvedValue({
+				nickname: 'testuser',
+				version: 1,
+				settings: {
+					language: 'en',
+					timezone: 'UTC',
+					avatar: 'https://example.com/avatar.png',
+					last_name: 'Doe',
+					first_name: 'John',
+					email: 'john@example.com',
+					phone: '+1234567890',
+					display_name: 'John Doe'
+				}
+			});
+
+			mockUpdateSet.mockReturnValue({
+				where: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([]) })
+			});
+
+			const message: SettingsMessage = {
+				source: 'test',
+				nickname: 'testuser',
+				request_id: 'req1',
+				timestamp: Date.now(),
+				version: 2,
+				payload: {
+					language: 'fr'
+				}
+			};
+
+			await expect(settingsService.updateUserSettings('testuser', message)).rejects.toThrow();
+		});
+
 		it('should ignore unmodifiable or extra unknown fields', async () => {
 			mockFindFirst.mockResolvedValue({
 				nickname: 'testuser',
@@ -360,7 +415,11 @@ describe('Settings service', () => {
 				}
 			});
 
-			mockUpdateSet.mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
+			mockUpdateSet.mockReturnValue({
+				where: vi
+					.fn()
+					.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ nickname: 'testuser' }]) })
+			});
 
 			const message = {
 				source: 'test',
@@ -377,20 +436,14 @@ describe('Settings service', () => {
 
 			await settingsService.updateUserSettings('testuser', message);
 
-			expect(mockUpdateSet).toHaveBeenCalledWith({
-				settings: {
-					language: 'fr',
-					timezone: 'UTC',
-					avatar: 'https://example.com/avatar.png',
-					last_name: 'Doe',
-					first_name: 'John',
-					email: 'john@example.com',
-					phone: '+1234567890',
-					matrix_id: '@user:example.com',
-					display_name: 'John Doe'
-				},
-				version: 2
-			});
+			const setArg = lastUpdateSet();
+			expect(setArg.settings).toBeInstanceOf(SQL);
+			expect(setArg.version).toBe(2);
+
+			// Unknown and non-editable fields are dropped; only the editable fields
+			// from the payload end up in the merge.
+			const { params } = compileMerge(setArg.settings);
+			expect(params).toEqual(['{"language":"fr","display_name":"John Doe"}']);
 		});
 	});
 

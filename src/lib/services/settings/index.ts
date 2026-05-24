@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { v6 as uuid } from 'uuid';
-import { eq, gt } from 'drizzle-orm';
+import { and, eq, gt, lt, sql } from 'drizzle-orm';
 import { db } from '$db';
 import loggerService, { type GenericLogger } from '$services/logger';
 import rabbitMQService from '$services/rabbitmq';
@@ -148,16 +148,30 @@ class SettingsService {
 		}
 
 		const newPartialSettings = this.buildSettingsUpdatePayload(message);
-		const {
-			nickname: _nickname,
-			version: _version,
-			...settings
-		} = { ...currentSettingsEntry, ...newPartialSettings };
 
-		await db
+		// Merge the changed fields onto the row's *current* stored value inside the
+		// UPDATE itself (jsonb `||`) and guard on the version in the same statement.
+		// Doing the merge and the version check atomically removes the
+		// read-modify-write race entirely: the write patches whatever is currently
+		// stored rather than a possibly stale snapshot read above, and only one of
+		// two concurrent writers can advance the version.
+		const updated = await db
 			.update(userSettingsTable)
-			.set({ settings, version })
-			.where(eq(userSettingsTable.nickname, nickname));
+			.set({
+				settings: sql`${userSettingsTable.settings} || ${JSON.stringify(newPartialSettings)}::jsonb`,
+				version
+			})
+			.where(and(eq(userSettingsTable.nickname, nickname), lt(userSettingsTable.version, version)))
+			.returning({ nickname: userSettingsTable.nickname });
+
+		if (updated.length === 0) {
+			this.logger.error(`Concurrent update conflict for user ${nickname}`, {
+				version,
+				currentVersion: currentSettingsEntry.version
+			});
+
+			throw error(409, 'Settings update conflict');
+		}
 
 		this.logger.info(`Updated user ${nickname} settings with version ${version}`);
 	};
