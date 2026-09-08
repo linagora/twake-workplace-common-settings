@@ -5,7 +5,7 @@ import { db } from '$db';
 import loggerService, { type GenericLogger } from '$services/logger';
 import rabbitMQService from '$services/rabbitmq';
 import { userSettingsTable } from '$db/schema';
-import { updateUserSettingsSchema } from '$lib/schemas/user-settings';
+import { updateUserSettingsSchema, userSettingsPayloadSchema } from '$lib/schemas/user-settings';
 import type { RabbitMQMessage } from '@linagora/rabbitmq-client';
 import type {
 	Nullable,
@@ -19,7 +19,6 @@ import {
 	DEFAULT_SETTINGS_INPUT_QUEUE,
 	DEFAULT_SETTINGS_INPUT_ROUTING_KEY,
 	DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY,
-	EDITABLE_USER_SETTINGS,
 	SETTINGS_NOTIFICATION_SOURCE,
 	SYNC_BATCH_SIZE,
 	SYNC_PROCESS_DELAY
@@ -325,14 +324,19 @@ class SettingsService {
 	 * Builds a settings update payload
 	 *
 	 * @param {SettingsMessage} message - the settings update message
-	 * @returns {Partial<UserSettings>} - the settings update payload
+	 * @returns {Partial<Nullable<UserSettings>>} - the settings update payload
 	 */
-	private buildSettingsUpdatePayload = (message: SettingsMessage): Partial<UserSettings> => {
-		const payload: Partial<UserSettings> = {};
+	private buildSettingsUpdatePayload = (
+		message: SettingsMessage
+	): Partial<Nullable<UserSettings>> => {
+		const payload: Partial<Nullable<UserSettings>> = {};
 
-		for (const key of EDITABLE_USER_SETTINGS) {
-			if (message.payload[key]) {
-				payload[key] = message.payload[key];
+		// undefined, not falsy: a null is the caller clearing the setting and must survive.
+		for (const key of Object.keys(userSettingsPayloadSchema.shape) as Array<keyof UserSettings>) {
+			const value = message.payload[key];
+
+			if (value !== undefined) {
+				payload[key] = value;
 			}
 		}
 

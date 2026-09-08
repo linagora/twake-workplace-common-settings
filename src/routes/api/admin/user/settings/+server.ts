@@ -44,8 +44,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw error(400, 'Invalid data');
 		}
 
-		await settingsService.createUserSettings(body.nickname, body.payload, body.version);
-		await settingsService.sendSettingsUpdateNotification(body.nickname);
+		const { nickname, payload, version } = parsed.data;
+
+		await settingsService.createUserSettings(nickname, payload, version);
+		await settingsService.sendSettingsUpdateNotification(nickname);
 
 		return new Response('ok', { status: 200 });
 	} catch (err) {

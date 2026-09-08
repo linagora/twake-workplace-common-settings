@@ -18,6 +18,10 @@ export const userSettingsPayloadSchema = z.object({
 	display_name: z.string()
 });
 
+const hasSetting = (payload: object): boolean => Object.keys(payload).length > 0;
+
+const hasSettingError = { message: 'At least one setting must be provided' };
+
 /**
  * base schema for user settings operations
  */
@@ -34,17 +38,29 @@ const baseMessageSchema = z.object({
  */
 export const createUserSettingsSchema = baseMessageSchema
 	.extend({
-		payload: userSettingsPayloadSchema
+		payload: userSettingsPayloadSchema.strict()
 	})
 	.strict();
 
 /**
- * the schema for validating user settings update payload
+ * the schema for validating user settings update messages off the queue
+ *
+ * Non strict: a producer has no caller to hand a validation error back to, so
+ * rejecting an unknown key would dead letter the message and lose the update.
  */
 export const updateUserSettingsSchema = baseMessageSchema
 	.extend({
-		payload: userSettingsPayloadSchema.partial().refine((obj) => Object.keys(obj).length > 0, {
-			message: 'At least one setting must be provided'
-		})
+		payload: userSettingsPayloadSchema.partial().refine(hasSetting, hasSettingError)
+	})
+	.strict();
+
+/**
+ * the schema for validating user settings update requests on the admin API
+ *
+ * Strict, unlike the queue schema: an unknown key here is a caller mistake worth a 400.
+ */
+export const adminUpdateUserSettingsSchema = baseMessageSchema
+	.extend({
+		payload: userSettingsPayloadSchema.strict().partial().refine(hasSetting, hasSettingError)
 	})
 	.strict();
