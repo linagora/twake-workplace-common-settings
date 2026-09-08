@@ -164,6 +164,42 @@ describe('PUT /api/admin/user/settings/:username', () => {
 		await expect(PUT(event)).rejects.toThrow(expect.toSatisfy((err) => err.status === 400));
 	});
 
+	it('returns 400 rather than silently dropping an unknown payload field', async () => {
+		const event: any = makeRequestEvent({
+			user: 'API',
+			usernameParam: validUsername,
+			body: {
+				source: 'test',
+				nickname: validUsername,
+				request_id: 'req1',
+				timestamp: Date.now(),
+				version: 2,
+				payload: { language: 'fr', unknown_field: 'unknown' }
+			}
+		});
+
+		await expect(PUT(event)).rejects.toThrow(expect.toSatisfy((err) => err.status === 400));
+	});
+
+	it('forwards the previously dropped fields to the service', async () => {
+		mockUpdateUserSettings.mockResolvedValue(undefined);
+		mockSendSettingsUpdateNotification.mockResolvedValue(undefined);
+
+		const body = {
+			source: 'test',
+			nickname: validUsername,
+			request_id: 'req1',
+			timestamp: Date.now(),
+			version: 2,
+			payload: { matrix_id: '@user:server.com', email: 'user@server.com', phone: '+33612345678' }
+		};
+
+		const event: any = makeRequestEvent({ user: 'API', usernameParam: validUsername, body });
+		await PUT(event);
+
+		expect(mockUpdateUserSettings).toHaveBeenCalledWith(validUsername, body);
+	});
+
 	it('should call updateUserSettings and sendSettingsUpdateNotification on success', async () => {
 		mockUpdateUserSettings.mockResolvedValue(undefined);
 		mockSendSettingsUpdateNotification.mockResolvedValue(undefined);

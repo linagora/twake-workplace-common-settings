@@ -81,7 +81,6 @@ vi.mock('$utils/config', () => ({
 	DEFAULT_SETTINGS_INPUT_QUEUE: 'queue',
 	DEFAULT_SETTINGS_INPUT_ROUTING_KEY: 'inKey',
 	DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY: 'outKey',
-	EDITABLE_USER_SETTINGS: ['language', 'timezone', 'avatar', 'display_name'],
 	SYNC_BATCH_SIZE: 5,
 	SYNC_PROCESS_DELAY: 500,
 	SETTINGS_NOTIFICATION_SOURCE: 'common-settings'
@@ -91,7 +90,8 @@ vi.mock('$lib/schemas/user-settings', async () => {
 	const actual = await vi.importActual('$lib/schemas/user-settings');
 	return {
 		updateUserSettingsSchema: actual.updateUserSettingsSchema,
-		createUserSettingsSchema: actual.createUserSettingsSchema
+		createUserSettingsSchema: actual.createUserSettingsSchema,
+		userSettingsPayloadSchema: actual.userSettingsPayloadSchema
 	};
 });
 
@@ -129,6 +129,34 @@ describe('Settings service', () => {
 				throw new Error('fail');
 			});
 			await expect(settingsService.init()).rejects.toThrow('Failed to initialize settings service');
+		});
+	});
+
+	describe('the queue message handler', () => {
+		it('should strip an unknown payload key instead of dead lettering the message', async () => {
+			await settingsService.init();
+			const handle = mockSubscribe.mock.calls.at(-1)?.[3] as (m: unknown) => Promise<void>;
+
+			mockFindFirst.mockResolvedValue({ nickname: 'testuser', version: 1, settings: {} });
+			mockUpdateSet.mockReturnValue({
+				where: vi
+					.fn()
+					.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ nickname: 'testuser' }]) })
+			});
+
+			await expect(
+				handle({
+					source: 'test',
+					nickname: 'testuser',
+					request_id: 'XXXX',
+					timestamp: Date.now(),
+					version: 2,
+					payload: { language: 'fr', unknown_field: 'unknown' }
+				})
+			).resolves.not.toThrow();
+
+			const { params } = compileMerge(lastUpdateSet().settings);
+			expect(params).toEqual(['{"language":"fr"}']);
 		});
 	});
 
@@ -308,8 +336,8 @@ describe('Settings service', () => {
 			const { sql, params } = compileMerge(setArg.settings);
 			expect(sql).toContain('|| ');
 			expect(sql).toContain('::jsonb');
-			// Only the changed editable field is merged; untouched fields are left
-			// to the database's current value.
+			// Only the changed field is merged; untouched fields are left to the
+			// database's current value.
 			expect(params).toEqual(['{"language":"fr"}']);
 		});
 
@@ -398,7 +426,7 @@ describe('Settings service', () => {
 			await expect(settingsService.updateUserSettings('testuser', message)).rejects.toThrow();
 		});
 
-		it('should ignore unmodifiable or extra unknown fields', async () => {
+		it('should write every known field and drop unknown ones', async () => {
 			mockFindFirst.mockResolvedValue({
 				nickname: 'testuser',
 				version: 1,
@@ -430,6 +458,8 @@ describe('Settings service', () => {
 				payload: {
 					language: 'fr',
 					unknown_field: 'unknown',
+					matrix_id: '@user:server.com',
+					email: 'user@server.com',
 					display_name: 'John Doe'
 				}
 			};
@@ -440,10 +470,10 @@ describe('Settings service', () => {
 			expect(setArg.settings).toBeInstanceOf(SQL);
 			expect(setArg.version).toBe(2);
 
-			// Unknown and non-editable fields are dropped; only the editable fields
-			// from the payload end up in the merge.
 			const { params } = compileMerge(setArg.settings);
-			expect(params).toEqual(['{"language":"fr","display_name":"John Doe"}']);
+			expect(params).toEqual([
+				'{"language":"fr","email":"user@server.com","matrix_id":"@user:server.com","display_name":"John Doe"}'
+			]);
 		});
 	});
 

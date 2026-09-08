@@ -2,7 +2,7 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import loggerService, { type GenericLogger } from '$services/logger';
 import settingsService from '$lib/services/settings';
 import { validateNickName } from '$utils/user';
-import { updateUserSettingsSchema } from '$lib/schemas/user-settings';
+import { adminUpdateUserSettingsSchema } from '$lib/schemas/user-settings';
 
 /**
  * User settings logger
@@ -67,7 +67,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const body = await request.json();
-		const parsed = await updateUserSettingsSchema.safeParseAsync(body);
+		const parsed = await adminUpdateUserSettingsSchema.safeParseAsync(body);
 
 		if (!parsed.success) {
 			logger.error('Invalid data', parsed.error.errors);
@@ -75,7 +75,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Invalid data');
 		}
 
-		await settingsService.updateUserSettings(username, body);
+		await settingsService.updateUserSettings(username, parsed.data);
 		settingsService.sendSettingsUpdateNotification(username);
 
 		return new Response('ok', { status: 200 });

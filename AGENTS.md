@@ -168,7 +168,7 @@ interface UserSettings {
 }
 ```
 
-Only certain fields are editable by users via OIDC-authenticated endpoints: `language`, `timezone`, `avatar`, `display_name` (defined in `EDITABLE_USER_SETTINGS`).
+The OIDC-authenticated user endpoint is read only. Both write paths (the admin API and the `user.settings.update` queue) accept every field, with `userSettingsPayloadSchema` as the allowlist. The admin API rejects an unknown field with a 400; the queue strips it, since dead-lettering a message would lose the update and there is no caller to hand the error to.
 
 ### User Settings Validation
 
