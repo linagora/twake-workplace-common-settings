@@ -89,6 +89,7 @@ See `documentation/rabbit-mq.md` for message format details.
 - `/api/admin/user/settings/[username]` - Admin GET and PUT for specific user settings
 - `/api/admin/user/settings/sync` - Sync all user settings to RabbitMQ
 - `/api/admin/user/settings/sync/[username]` - Sync specific user settings to RabbitMQ
+- `/api/admin/locator/[email]` - Admin GET of a user's workplace address by email (case insensitive)
 - `/api/user/settings` - User GET endpoint (OIDC authenticated)
 
 ## Common Commands

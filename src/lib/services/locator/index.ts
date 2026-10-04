@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { eq } from 'drizzle-orm';
 import { db } from '$db';
 import loggerService, { type GenericLogger } from '$services/logger';
 import rabbitMQService from '$services/rabbitmq';
@@ -71,6 +72,15 @@ class LocatorService {
 
 			throw err;
 		}
+	};
+
+	public getWorkplaceFqdn = async (email: string): Promise<string | null> => {
+		const entry = await db.query.workplaceLocatorTable.findFirst({
+			columns: { workplaceFqdn: true },
+			where: eq(workplaceLocatorTable.email, email.toLowerCase())
+		});
+
+		return entry?.workplaceFqdn ?? null;
 	};
 }
 
