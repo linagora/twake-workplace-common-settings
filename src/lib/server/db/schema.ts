@@ -15,3 +15,11 @@ export const userSettingsTable = pgTable(
 	},
 	(table) => [index('nickname_idx').on(table.nickname)]
 );
+
+/**
+ * keyed by the lowercased email, learned from `user.created`.
+ */
+export const workplaceLocatorTable = pgTable('workplace_locator', {
+	email: text('email').primaryKey(),
+	workplaceFqdn: text('workplace_fqdn').notNull()
+});

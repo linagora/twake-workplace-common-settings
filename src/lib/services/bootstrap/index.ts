@@ -2,6 +2,7 @@ import type { Service } from '$types';
 import LoggerService, { type GenericLogger } from '$services/logger';
 import rabbitmq from '$services/rabbitmq';
 import settings from '$services/settings';
+import locator from '$services/locator';
 
 class BootstrapService {
 	private readonly name = 'bootstrap';
@@ -21,7 +22,7 @@ class BootstrapService {
 			name: this.name
 		});
 
-		this.services = [rabbitmq, settings];
+		this.services = [rabbitmq, settings, locator];
 	}
 
 	/**

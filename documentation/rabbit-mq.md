@@ -66,3 +66,37 @@ This message is consumed by backend services responsible for updating their cach
 
 - Each application declares and binds a quorum queue.
 - Respect optimistic concurrency using the version field if applicable.
+
+# RabbitMQ Message Documentation: Workplace Locator
+
+## Overview
+
+The workplace locator stores each user's workplace address, keyed by email ([ADR 063](https://github.com/linagora/twake-workplace-private/pull/1762)). It learns it from `user.created`, which the service that creates the instance publishes once the instance exists.
+
+## Binding
+
+- Exchange: `RABBITMQ_AUTH_EXCHANGE` (default `auth`), durable topic
+- Routing key: `RABBITMQ_USER_CREATED_ROUTING_KEY` (default `user.created`)
+- Queue: `RABBITMQ_LOCATOR_QUEUE` (default `common-settings.workplace-locator`), with its dead letter queue `<queue>.dlq`
+
+## Payload Structure
+
+```json
+{
+	"twakeId": "alice",
+	"internalEmail": "alice@example.com",
+	"workplaceFqdn": "alice.twake.app"
+}
+```
+
+Only `internalEmail` and `workplaceFqdn` are read. Other fields are ignored.
+
+## Consumer Behavior
+
+- The email is lowercased and the row for it is added or replaced, so a message delivered twice changes nothing.
+- A message without `internalEmail` or `workplaceFqdn` is logged and acknowledged.
+- A database failure is retried, then dead lettered.
+
+## Schema
+
+The service does not migrate its database on start. Deployments apply `migrations/workplace_locator.sql` with `psql` before running this version. It is plain SQL, not a drizzle-kit migration, and safe to run twice.
