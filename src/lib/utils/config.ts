@@ -7,6 +7,9 @@ export const DEFAULT_SETTINGS_INPUT_QUEUE = 'user.settings.input';
 export const DEFAULT_SETTINGS_INPUT_ROUTING_KEY = 'user.settings.update';
 export const DEFAULT_SETTINGS_OUTPUT_ROUTING_KEY = 'user.settings.updated';
 export const SETTINGS_NOTIFICATION_SOURCE = 'common-settings';
+export const DEFAULT_AUTH_EXCHANGE = 'auth';
+export const DEFAULT_USER_CREATED_ROUTING_KEY = 'user.created';
+export const DEFAULT_LOCATOR_QUEUE = 'common-settings.workplace-locator';
 
 export const OIDC_USERINFO_PATH = '/oauth2/userinfo';
 

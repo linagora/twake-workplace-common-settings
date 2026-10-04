@@ -71,6 +71,8 @@ Message format (`SettingsMessage` type):
 }
 ```
 
+The locator service (`src/lib/services/locator/index.ts`) also consumes `user.created` on the `auth` exchange, on its own queue, and stores `internalEmail` (lowercased) to `workplaceFqdn` in the `workplace_locator` table. A repeat replaces the row. A message missing either field is logged and acked.
+
 Key features:
 
 - Topic exchange with configurable routing keys
@@ -141,6 +143,12 @@ Required environment variables (see `.env.example`):
 - `RABBITMQ_SETTINGS_INPUT_ROUTING_KEY` - Routing key for consuming updates
 - `RABBITMQ_SETTINGS_OUTPUT_ROUTING_KEY` - Routing key for publishing updates
 - `IDENTITY_PROVIDER_URL` - OIDC provider URL for token validation
+
+Optional workplace locator binding:
+
+- `RABBITMQ_AUTH_EXCHANGE` - Exchange carrying `user.created` (default: auth)
+- `RABBITMQ_USER_CREATED_ROUTING_KEY` - Routing key for `user.created` (default: user.created)
+- `RABBITMQ_LOCATOR_QUEUE` - Locator queue, its DLQ is `<queue>.dlq` (default: common-settings.workplace-locator)
 
 Optional RabbitMQ tuning:
 
