@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { validateNickName, isPhoneValid } from '$utils';
+import { validateNickName } from '$utils/user';
+import { isPhoneValid } from '$utils/phone';
 
 /**
  * the core user settings payload schema

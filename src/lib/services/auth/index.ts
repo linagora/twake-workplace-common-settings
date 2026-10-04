@@ -1,6 +1,5 @@
 import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { concatUrl, getUrl } from '$utils/url';
 import LoggerService, { type GenericLogger } from '$services/logger';
 import { OIDC_USERINFO_PATH } from '$utils/config';
 
@@ -24,9 +23,7 @@ class AuthService {
 			}
 		}
 
-		const url = getUrl(env.IDENTITY_PROVIDER_URL);
-
-		this.oidcUserInfoUrl = concatUrl(url, OIDC_USERINFO_PATH);
+		this.oidcUserInfoUrl = `${(env.IDENTITY_PROVIDER_URL ?? '').replace(/\/+$/, '')}${OIDC_USERINFO_PATH}`;
 	}
 
 	/**

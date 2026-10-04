@@ -206,42 +206,15 @@ describe('Settings service', () => {
 		});
 	});
 
-	describe('the userSettingsExist method', () => {
-		it('should return true if the user settings exist', async () => {
-			mockFindFirst.mockResolvedValue({
-				nickname: 'testuser',
-				version: 1,
-				settings: {
-					language: 'en',
-					timezone: 'UTC',
-					avatar: 'https://example.com/avatar.png',
-					last_name: 'Doe',
-					first_name: 'John',
-					email: 'john@example.com',
-					phone: '+1234567890',
-					matrix_id: null,
-					display_name: 'John Doe'
-				}
-			});
-
-			const result = await settingsService.userSettingsExist('testuser');
-
-			expect(result).toBe(true);
-		});
-
-		it('should return false if the user settings do not exist', async () => {
-			mockFindFirst.mockResolvedValue(undefined);
-
-			const result = await settingsService.userSettingsExist('testuser');
-
-			expect(result).toBe(false);
-		});
-	});
-
 	describe('the createUserSettings method', () => {
+		const insertResult = (rows: { nickname: string }[]) => ({
+			onConflictDoNothing: vi.fn().mockReturnValue({
+				returning: vi.fn().mockResolvedValue(rows)
+			})
+		});
+
 		it('should inserts settings into DB', async () => {
-			mockFindFirst.mockResolvedValue(undefined);
-			mockInsertValues.mockResolvedValue(undefined);
+			mockInsertValues.mockReturnValue(insertResult([{ nickname: 'testuser' }]));
 
 			const payload = {
 				language: 'en',
@@ -265,29 +238,19 @@ describe('Settings service', () => {
 		});
 
 		it('should throw an error if something wrong happens', async () => {
-			mockInsertValues.mockRejectedValue(new Error('insert fail'));
+			mockInsertValues.mockImplementation(() => {
+				throw new Error('insert fail');
+			});
 
 			await expect(settingsService.createUserSettings('testuser', {} as any, 1)).rejects.toThrow();
 		});
 
-		it('should throw an error if the user already has settings', async () => {
-			mockFindFirst.mockResolvedValue({
-				nickname: 'testuser',
-				version: 1,
-				settings: {
-					language: 'en',
-					timezone: 'UTC',
-					avatar: 'https://example.com/avatar.png',
-					last_name: 'Doe',
-					first_name: 'John',
-					email: 'john@example.com',
-					phone: '+1234567890',
-					matrix_id: null,
-					display_name: 'John Doe'
-				}
-			});
+		it('should throw a conflict if the user already has settings', async () => {
+			mockInsertValues.mockReturnValue(insertResult([]));
 
-			await expect(settingsService.createUserSettings('testuser', {} as any, 1)).rejects.toThrow();
+			await expect(
+				settingsService.createUserSettings('testuser', {} as any, 1)
+			).rejects.toMatchObject({ status: 409 });
 		});
 	});
 

@@ -1,7 +1,7 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
+import { z } from 'zod';
 import loggerService, { type GenericLogger } from '$services/logger';
 import locatorService from '$lib/services/locator';
-import { locatorLookupEmailSchema } from '$lib/schemas/locator';
 
 const logger: GenericLogger = loggerService.getSubLogger({
 	name: 'API',
@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		const parsed = locatorLookupEmailSchema.safeParse(params.email);
+		const parsed = z.string().trim().email().safeParse(params.email);
 
 		if (!parsed.success) {
 			throw error(400, 'Invalid email');

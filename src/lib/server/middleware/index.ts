@@ -3,7 +3,7 @@ import { env } from '$env/dynamic/private';
 import type { RequestEvent } from '@sveltejs/kit';
 import LoggerService, { type GenericLogger } from '$services/logger';
 import authService from '$services/auth';
-import { GetRequestAccessToken } from '$utils';
+import { GetRequestAccessToken } from '$utils/request';
 import { OIDC_PROTECTED_APIS, PROTECTED_APIS } from '$utils/config';
 
 /**
