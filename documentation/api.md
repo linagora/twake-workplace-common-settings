@@ -204,6 +204,33 @@ Synchronize specific user settings with all apps by publishing update messages t
 
 ---
 
+## GET `/api/admin/locator/:email`
+
+Look up the workplace address of a user by email ( admin API ). The match ignores case.
+
+### Path Parameters
+
+| Param | Type   | Description                   |
+| ----- | ------ | ----------------------------- |
+| email | string | The user's email, URL encoded |
+
+### Response
+
+- **200 OK** – Returns the workplace address:
+
+```json
+{
+	"workplaceFqdn": "alice.twake.app"
+}
+```
+
+- **400 Bad Request** – Invalid email
+- **401 Unauthorized** – Missing or invalid token
+- **404 Not Found** – No workplace address for this email
+- **500 Internal Server Error** - something wrong happaned
+
+---
+
 ## 📘 Notes
 
 - The `version` must be incremented appropriately when updating.

@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import locatorService from '$services/locator';
 import { workplaceLocatorTable } from '$db/schema';
 
-const { mockSubscribe, mockInsert, mockValues, mockOnConflictDoUpdate } = vi.hoisted(() => ({
-	mockSubscribe: vi.fn(),
-	mockInsert: vi.fn(),
-	mockValues: vi.fn(),
-	mockOnConflictDoUpdate: vi.fn()
-}));
+const { mockSubscribe, mockInsert, mockValues, mockOnConflictDoUpdate, mockFindFirst } = vi.hoisted(
+	() => ({
+		mockSubscribe: vi.fn(),
+		mockInsert: vi.fn(),
+		mockValues: vi.fn(),
+		mockOnConflictDoUpdate: vi.fn(),
+		mockFindFirst: vi.fn()
+	})
+);
 
 vi.mock('$services/rabbitmq', () => ({
 	default: {
@@ -25,6 +29,11 @@ vi.mock('$env/dynamic/private', () => ({
 
 vi.mock('$db', () => ({
 	db: {
+		query: {
+			workplaceLocatorTable: {
+				findFirst: mockFindFirst
+			}
+		},
 		insert: mockInsert.mockImplementation(() => ({
 			values: mockValues.mockImplementation(() => ({
 				onConflictDoUpdate: mockOnConflictDoUpdate
@@ -113,6 +122,25 @@ describe('Locator service', () => {
 			await expect(
 				handle({ internalEmail: 'alice@example.com', workplaceFqdn: 'alice.twake.app' })
 			).rejects.toThrow('db down');
+		});
+	});
+
+	describe('the getWorkplaceFqdn function', () => {
+		it('should look up the address by the lowercased email', async () => {
+			mockFindFirst.mockResolvedValue({ workplaceFqdn: 'alice.twake.app' });
+
+			await expect(locatorService.getWorkplaceFqdn('Alice@Example.COM')).resolves.toBe(
+				'alice.twake.app'
+			);
+
+			const { where } = mockFindFirst.mock.calls[0][0];
+			expect(new PgDialect().sqlToQuery(where).params).toEqual(['alice@example.com']);
+		});
+
+		it('should return null for an unknown email', async () => {
+			mockFindFirst.mockResolvedValue(undefined);
+
+			await expect(locatorService.getWorkplaceFqdn('bob@example.com')).resolves.toBeNull();
 		});
 	});
 });
