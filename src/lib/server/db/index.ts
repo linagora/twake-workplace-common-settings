@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import * as schema from './schema';
 import { env } from '$env/dynamic/private';
 import { building } from '$app/environment';
-import { DEFAULT_DB_TIMEOUT } from '$utils';
+import { DEFAULT_DB_TIMEOUT } from '$utils/config';
 
 if (!env.DATABASE_URL && !building) {
 	throw new Error('DATABASE_URL is not set');

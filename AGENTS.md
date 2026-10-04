@@ -20,9 +20,9 @@ Twake Workplace Common Settings is a SvelteKit-based microservice that manages u
 
 The application follows a service-based architecture with singleton services initialized at startup:
 
-- **Bootstrap Service** (`src/lib/services/bootstrap/index.ts`): Orchestrates initialization of all services in sequence
 - **Settings Service** (`src/lib/services/settings/index.ts`): Core business logic for user settings CRUD operations and RabbitMQ message handling
-- **RabbitMQ Service** (`src/lib/services/rabbitmq/index.ts`): Handles all message queue operations with automatic reconnection and retry logic
+- **Locator Service** (`src/lib/services/locator/index.ts`): Stores each user's workplace address from `user.created` and looks it up by email
+- **RabbitMQ** (`src/lib/services/rabbitmq/index.ts`): The shared `@linagora/rabbitmq-client` instance, with automatic reconnection and retry logic
 - **Auth Service** (`src/lib/services/auth/index.ts`): Validates OIDC tokens via the identity provider
 - **Logger Service** (`src/lib/services/logger/index.ts`): Structured logging with tslog
 

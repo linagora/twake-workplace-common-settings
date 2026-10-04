@@ -1,16 +1,21 @@
 import { env } from '$env/dynamic/private';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '$db';
 import loggerService, { type GenericLogger } from '$services/logger';
 import rabbitMQService from '$services/rabbitmq';
 import { workplaceLocatorTable } from '$db/schema';
-import { userCreatedSchema } from '$lib/schemas/user-created';
 import type { RabbitMQMessage } from '@linagora/rabbitmq-client';
 import {
 	DEFAULT_AUTH_EXCHANGE,
 	DEFAULT_LOCATOR_QUEUE,
 	DEFAULT_USER_CREATED_ROUTING_KEY
 } from '$utils/config';
+
+const userCreatedSchema = z.object({
+	internalEmail: z.string().trim().email(),
+	workplaceFqdn: z.string().trim().min(1)
+});
 
 class LocatorService {
 	public readonly name = 'locator';

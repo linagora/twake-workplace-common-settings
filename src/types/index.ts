@@ -1,16 +1,11 @@
-export interface Service {
-	init: () => Promise<void>;
-	name: string;
-}
-
-export interface SettingsMessage {
+export type SettingsMessage = {
 	source: string;
 	nickname: string;
 	request_id: string;
 	timestamp: number;
 	payload: Partial<Nullable<UserSettings>>;
 	version: number;
-}
+};
 
 export type Nullable<T> = {
 	[P in keyof T]: T[P] | null;
@@ -31,10 +26,4 @@ export interface UserSettings {
 export interface UserSettingsResponse extends Partial<Nullable<UserSettings>> {
 	version: number;
 	nickname: string;
-}
-
-export interface UserSettingsEntry {
-	nickname: string;
-	version: number;
-	settings: Partial<Nullable<UserSettings>>;
 }

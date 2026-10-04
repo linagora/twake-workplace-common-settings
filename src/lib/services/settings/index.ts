@@ -1,5 +1,5 @@
+import { randomUUID } from 'crypto';
 import { env } from '$env/dynamic/private';
-import { v6 as uuid } from 'uuid';
 import { and, eq, gt, lt, sql } from 'drizzle-orm';
 import { db } from '$db';
 import loggerService, { type GenericLogger } from '$services/logger';
@@ -7,13 +7,7 @@ import rabbitMQService from '$services/rabbitmq';
 import { userSettingsTable } from '$db/schema';
 import { updateUserSettingsSchema, userSettingsPayloadSchema } from '$lib/schemas/user-settings';
 import type { RabbitMQMessage } from '@linagora/rabbitmq-client';
-import type {
-	Nullable,
-	SettingsMessage,
-	UserSettings,
-	UserSettingsEntry,
-	UserSettingsResponse
-} from '$types';
+import type { Nullable, SettingsMessage, UserSettings, UserSettingsResponse } from '$types';
 import {
 	DEFAULT_RABBITMQ_EXCHANGE,
 	DEFAULT_SETTINGS_INPUT_QUEUE,
@@ -24,6 +18,8 @@ import {
 	SYNC_PROCESS_DELAY
 } from '$utils/config';
 import { error } from '@sveltejs/kit';
+
+type UserSettingsRow = typeof userSettingsTable.$inferSelect;
 
 class SettingsService {
 	public readonly name = 'settings';
@@ -250,30 +246,12 @@ class SettingsService {
 	}
 
 	/**
-	 * Checks if user settings exists
-	 *
-	 * @param {string} nickname - the user's nickname
-	 * @returns {Promise<boolean>} - a promise that resolves to true if user settings exist, false otherwise
-	 */
-	public async userSettingsExist(nickname: string): Promise<boolean> {
-		this.logger.info(`Checking if user settings exist for ${nickname}`);
-
-		const userSettings = await db.query.userSettingsTable.findFirst({
-			where: eq(userSettingsTable.nickname, nickname)
-		});
-
-		return !!userSettings;
-	}
-
-	/**
 	 * Creates a new user settings entry.
-	 * Throws if creation fails.
 	 *
 	 * @param {string} nickname - The user's nickname (primary key).
 	 * @param {Nullable<UserSettings>} settings - The initial user settings.
 	 * @param {number} [version=1] - The initial settings version (default 1).
-	 * @returns {Promise<void>} Resolves on success.
-	 * @throws {Error} Throws if insertion fails.
+	 * @throws {HttpError} 409 if the nickname already has settings.
 	 */
 	public createUserSettings = async (
 		nickname: string,
@@ -282,19 +260,17 @@ class SettingsService {
 	): Promise<void> => {
 		this.logger.info(`Creating user settings for nickname: ${nickname}`);
 
-		const existingSettings = await this.userSettingsExist(nickname);
+		const created = await db
+			.insert(userSettingsTable)
+			.values({ nickname, settings, version })
+			.onConflictDoNothing()
+			.returning({ nickname: userSettingsTable.nickname });
 
-		if (existingSettings) {
+		if (created.length === 0) {
 			this.logger.info(`User settings already exist for ${nickname}`);
 
 			throw error(409, 'User already has existing settings');
 		}
-
-		await db.insert(userSettingsTable).values({
-			nickname,
-			settings,
-			version
-		});
 
 		this.logger.info(`User settings successfully created for ${nickname}`);
 	};
@@ -315,7 +291,7 @@ class SettingsService {
 			payload,
 			source: SETTINGS_NOTIFICATION_SOURCE,
 			timestamp: Date.now(),
-			request_id: uuid(),
+			request_id: randomUUID(),
 			version
 		};
 	};
@@ -346,11 +322,11 @@ class SettingsService {
 	/**
 	 * Broadcast settings messages
 	 *
-	 * @param {UserSettingsEntry[]} userSettings - the messages to broadcast
+	 * @param {UserSettingsRow[]} userSettings - the stored rows to broadcast
 	 * @returns {Promise<void>} - a promise that resolves when the messages are broadcasted
 	 */
 	private broadcastUserSettingsMessages = async (
-		userSettings: UserSettingsEntry[]
+		userSettings: UserSettingsRow[]
 	): Promise<void> => {
 		this.logger.info('Broadcasting user settings messages');
 
@@ -380,7 +356,7 @@ class SettingsService {
 		this.logger.info('Synchronizing user settings started');
 
 		let lastProcessedUser: string | null = null;
-		let batch: UserSettingsEntry[];
+		let batch: UserSettingsRow[];
 
 		do {
 			batch = await db
