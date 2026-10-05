@@ -16,7 +16,8 @@ export const userSettingsPayloadSchema = z.object({
 	email: z.string().email(),
 	phone: z.string().refine(isPhoneValid).optional(),
 	matrix_id: z.string().optional().nullable(),
-	display_name: z.string()
+	display_name: z.string(),
+	ai_assistant_enabled: z.boolean().optional()
 });
 
 const hasSetting = (payload: object): boolean => Object.keys(payload).length > 0;

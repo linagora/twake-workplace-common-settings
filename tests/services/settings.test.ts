@@ -158,6 +158,30 @@ describe('Settings service', () => {
 			const { params } = compileMerge(lastUpdateSet().settings);
 			expect(params).toEqual(['{"language":"fr"}']);
 		});
+
+		it('should keep the Twake Space assistant opt-in', async () => {
+			await settingsService.init();
+			const handle = mockSubscribe.mock.calls.at(-1)?.[3] as (m: unknown) => Promise<void>;
+
+			mockFindFirst.mockResolvedValue({ nickname: 'testuser', version: 1, settings: {} });
+			mockUpdateSet.mockReturnValue({
+				where: vi
+					.fn()
+					.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ nickname: 'testuser' }]) })
+			});
+
+			await handle({
+				source: 'test',
+				nickname: 'testuser',
+				request_id: 'XXXX',
+				timestamp: Date.now(),
+				version: 2,
+				payload: { ai_assistant_enabled: true }
+			});
+
+			const { params } = compileMerge(lastUpdateSet().settings);
+			expect(params).toEqual(['{"ai_assistant_enabled":true}']);
+		});
 	});
 
 	describe('the getUserSettings method', () => {
@@ -437,6 +461,32 @@ describe('Settings service', () => {
 			expect(params).toEqual([
 				'{"language":"fr","email":"user@server.com","matrix_id":"@user:server.com","display_name":"John Doe"}'
 			]);
+		});
+
+		it('should write a disabled Twake Space assistant rather than drop it', async () => {
+			mockFindFirst.mockResolvedValue({
+				nickname: 'testuser',
+				version: 1,
+				settings: { ai_assistant_enabled: true }
+			});
+
+			mockUpdateSet.mockReturnValue({
+				where: vi
+					.fn()
+					.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ nickname: 'testuser' }]) })
+			});
+
+			await settingsService.updateUserSettings('testuser', {
+				source: 'test',
+				nickname: 'testuser',
+				request_id: 'XXXX',
+				timestamp: Date.now(),
+				version: 2,
+				payload: { ai_assistant_enabled: false }
+			});
+
+			const { params } = compileMerge(lastUpdateSet().settings);
+			expect(params).toEqual(['{"ai_assistant_enabled":false}']);
 		});
 	});
 

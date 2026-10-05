@@ -307,13 +307,19 @@ class SettingsService {
 	): Partial<Nullable<UserSettings>> => {
 		const payload: Partial<Nullable<UserSettings>> = {};
 
-		// undefined, not falsy: a null is the caller clearing the setting and must survive.
-		for (const key of Object.keys(userSettingsPayloadSchema.shape) as Array<keyof UserSettings>) {
+		// Generic over the key so each value keeps the type of its own field, now that they differ.
+		// undefined, not falsy: a null is the caller clearing the setting and must survive, and a
+		// false is a setting turned off.
+		const copyField = <K extends keyof UserSettings>(key: K): void => {
 			const value = message.payload[key];
 
 			if (value !== undefined) {
 				payload[key] = value;
 			}
+		};
+
+		for (const key of Object.keys(userSettingsPayloadSchema.shape) as Array<keyof UserSettings>) {
+			copyField(key);
 		}
 
 		return payload;

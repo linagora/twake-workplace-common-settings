@@ -200,6 +200,43 @@ describe('PUT /api/admin/user/settings/:username', () => {
 		expect(mockUpdateUserSettings).toHaveBeenCalledWith(validUsername, body);
 	});
 
+	it('forwards the Twake Space assistant opt-in to the service', async () => {
+		mockUpdateUserSettings.mockResolvedValue(undefined);
+		mockSendSettingsUpdateNotification.mockResolvedValue(undefined);
+
+		const body = {
+			source: 'test',
+			nickname: validUsername,
+			request_id: 'req1',
+			timestamp: Date.now(),
+			version: 2,
+			payload: { ai_assistant_enabled: true }
+		};
+
+		const event: any = makeRequestEvent({ user: 'API', usernameParam: validUsername, body });
+		await PUT(event);
+
+		expect(mockUpdateUserSettings).toHaveBeenCalledWith(validUsername, body);
+	});
+
+	it('returns 400 when the assistant opt-in is not a boolean', async () => {
+		const event: any = makeRequestEvent({
+			user: 'API',
+			usernameParam: validUsername,
+			body: {
+				source: 'test',
+				nickname: validUsername,
+				request_id: 'req1',
+				timestamp: Date.now(),
+				version: 2,
+				payload: { ai_assistant_enabled: 'yes' }
+			}
+		});
+
+		await expect(PUT(event)).rejects.toThrow(expect.toSatisfy((err) => err.status === 400));
+		expect(mockUpdateUserSettings).not.toHaveBeenCalled();
+	});
+
 	it('should call updateUserSettings and sendSettingsUpdateNotification on success', async () => {
 		mockUpdateUserSettings.mockResolvedValue(undefined);
 		mockSendSettingsUpdateNotification.mockResolvedValue(undefined);

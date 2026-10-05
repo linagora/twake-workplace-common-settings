@@ -21,6 +21,7 @@ export interface UserSettings {
 	phone: string;
 	matrix_id: string;
 	display_name: string;
+	ai_assistant_enabled: boolean;
 }
 
 export interface UserSettingsResponse extends Partial<Nullable<UserSettings>> {
