@@ -44,7 +44,8 @@ Create new user settings.
 		"email": "john.doe@example.com",
 		"phone": "+33612345678",
 		"matrix_id": "@johndoe:matrix.org",
-		"display_name": "John Doe"
+		"display_name": "John Doe",
+		"ai_assistant_enabled": false
 	}
 }
 ```
@@ -84,7 +85,8 @@ Fetch the settings of a specific user as an internal service ( admin API )
 	"email": "john.doe@example.com",
 	"phone": "+33612345678",
 	"matrix_id": "@johndoe:matrix.org",
-	"display_name": "John Doe"
+	"display_name": "John Doe",
+	"ai_assistant_enabled": false
 }
 ```
 
@@ -162,7 +164,8 @@ the `access_token` is an OIDC access token.
 	"email": "john.doe@example.com",
 	"phone": "+33612345678",
 	"matrix_id": "@johndoe:matrix.org",
-	"display_name": "John Doe"
+	"display_name": "John Doe",
+	"ai_assistant_enabled": false
 }
 ```
 

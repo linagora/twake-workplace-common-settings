@@ -174,6 +174,7 @@ interface UserSettings {
 	phone: string;
 	matrix_id: string;
 	display_name: string;
+	ai_assistant_enabled: boolean;
 }
 ```
 
@@ -188,6 +189,7 @@ Zod schemas in `src/lib/schemas/user-settings.ts` validate all incoming data:
 - Avatar must be valid URL
 - Nickname must pass custom Twake validation (`validateNickName`)
 - Language defaults to 'en' if not provided
+- `ai_assistant_enabled` is an optional boolean: the user's opt-in for their Twake Space personal agent. Absent means off, and a `false` is written and republished like any other value
 
 ### Settings Synchronization
 

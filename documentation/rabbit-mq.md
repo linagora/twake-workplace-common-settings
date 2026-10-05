@@ -30,7 +30,8 @@ This message is consumed by backend services responsible for updating their cach
 		"email": "john.doe@example.com",
 		"phone": "+33612345678",
 		"matrix_id": "@johndoe:matrix.org",
-		"display_name": "John Doe"
+		"display_name": "John Doe",
+		"ai_assistant_enabled": false
 	}
 }
 ```
@@ -50,17 +51,18 @@ This message is consumed by backend services responsible for updating their cach
 
 ### the payload object:
 
-| Field          | Type   | Description                                       |
-| -------------- | ------ | ------------------------------------------------- |
-| `language`     | string | User's preferred language (e.g., `"en"`, `"fr"`). |
-| `timezone`     | string | IANA timezone string (e.g., `"Europe/Paris"`).    |
-| `avatar`       | string | URL to user's avatar image.                       |
-| `last_name`    | string | User's last name.                                 |
-| `first_name`   | string | User's first name.                                |
-| `email`        | string | User's email address.                             |
-| `phone`        | string | User's phone number in E.164 format.              |
-| `matrix_id`    | string | User's Matrix ID. (can be null)                   |
-| `display_name` | string | Full display name to show in UIs.                 |
+| Field                  | Type    | Description                                                                    |
+| ---------------------- | ------- | ------------------------------------------------------------------------------ |
+| `language`             | string  | User's preferred language (e.g., `"en"`, `"fr"`).                              |
+| `timezone`             | string  | IANA timezone string (e.g., `"Europe/Paris"`).                                 |
+| `avatar`               | string  | URL to user's avatar image.                                                    |
+| `last_name`            | string  | User's last name.                                                              |
+| `first_name`           | string  | User's first name.                                                             |
+| `email`                | string  | User's email address.                                                          |
+| `phone`                | string  | User's phone number in E.164 format.                                           |
+| `matrix_id`            | string  | User's Matrix ID. (can be null)                                                |
+| `display_name`         | string  | Full display name to show in UIs.                                              |
+| `ai_assistant_enabled` | boolean | Whether the user turned on their Twake Space personal agent. Absent means off. |
 
 ## Expected Consumer Behavior
 
