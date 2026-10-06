@@ -200,6 +200,39 @@ describe('PUT /api/admin/user/settings/:username', () => {
 		expect(mockUpdateUserSettings).toHaveBeenCalledWith(validUsername, body);
 	});
 
+	it.each(['light', 'dark', 'auto'])('forwards the %s theme to the service', async (theme) => {
+		const body = {
+			source: 'test',
+			nickname: validUsername,
+			request_id: 'req1',
+			timestamp: Date.now(),
+			version: 2,
+			payload: { theme }
+		};
+
+		const event: any = makeRequestEvent({ user: 'API', usernameParam: validUsername, body });
+		await PUT(event);
+
+		expect(mockUpdateUserSettings).toHaveBeenCalledWith(validUsername, body);
+	});
+
+	it('returns 400 for a theme outside light, dark and auto', async () => {
+		const event: any = makeRequestEvent({
+			user: 'API',
+			usernameParam: validUsername,
+			body: {
+				source: 'test',
+				nickname: validUsername,
+				request_id: 'req1',
+				timestamp: Date.now(),
+				version: 2,
+				payload: { theme: 'blue' }
+			}
+		});
+
+		await expect(PUT(event)).rejects.toThrow(expect.toSatisfy((err) => err.status === 400));
+	});
+
 	it('should call updateUserSettings and sendSettingsUpdateNotification on success', async () => {
 		mockUpdateUserSettings.mockResolvedValue(undefined);
 		mockSendSettingsUpdateNotification.mockResolvedValue(undefined);
@@ -279,7 +312,8 @@ describe('POST /api/admin/user/settings', () => {
 				email: 'john@example.com',
 				phone: '+33700000001',
 				matrix_id: '@user:server.com',
-				display_name: 'John Doe'
+				display_name: 'John Doe',
+				theme: 'dark'
 			}
 		};
 

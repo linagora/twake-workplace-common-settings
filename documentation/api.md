@@ -44,7 +44,8 @@ Create new user settings.
 		"email": "john.doe@example.com",
 		"phone": "+33612345678",
 		"matrix_id": "@johndoe:matrix.org",
-		"display_name": "John Doe"
+		"display_name": "John Doe",
+		"theme": "dark"
 	}
 }
 ```
@@ -84,7 +85,8 @@ Fetch the settings of a specific user as an internal service ( admin API )
 	"email": "john.doe@example.com",
 	"phone": "+33612345678",
 	"matrix_id": "@johndoe:matrix.org",
-	"display_name": "John Doe"
+	"display_name": "John Doe",
+	"theme": "dark"
 }
 ```
 
@@ -123,7 +125,7 @@ Partial `payload` is accepted. All other fields (`source`, `nickname`, `request_
 }
 ```
 
-At least one field inside `payload` must be provided.
+At least one field inside `payload` must be provided. A field left out keeps its stored value.
 
 ### Response
 
@@ -144,7 +146,9 @@ requires a **Bearer token** to be included in the `Authorization` header:
 Authorization: Bearer <access_token>
 ```
 
-the `access_token` is an OIDC access token.
+the `access_token` is an OIDC access token. The service sends it to the identity provider's `/oauth2/userinfo` and reads the settings of the user whose `nickname` equals the returned `sub`. It does not check the token audience.
+
+The service sends no CORS headers.
 
 ### Response
 
@@ -162,7 +166,8 @@ the `access_token` is an OIDC access token.
 	"email": "john.doe@example.com",
 	"phone": "+33612345678",
 	"matrix_id": "@johndoe:matrix.org",
-	"display_name": "John Doe"
+	"display_name": "John Doe",
+	"theme": "dark"
 }
 ```
 
@@ -237,3 +242,4 @@ Look up the workplace address of a user by email ( admin API ). The match ignore
 - The `nickname` must pass custom twake validation.
 - `phone` number must be in the `E.164` format
 - `language` must be in the `ISO 639-1` format
+- `theme` is optional and must be `light`, `dark` or `auto`

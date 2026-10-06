@@ -296,27 +296,17 @@ class SettingsService {
 		};
 	};
 
-	/**
-	 * Builds a settings update payload
-	 *
-	 * @param {SettingsMessage} message - the settings update message
-	 * @returns {Partial<Nullable<UserSettings>>} - the settings update payload
-	 */
 	private buildSettingsUpdatePayload = (
 		message: SettingsMessage
 	): Partial<Nullable<UserSettings>> => {
-		const payload: Partial<Nullable<UserSettings>> = {};
+		const keys = Object.keys(userSettingsPayloadSchema.shape) as Array<keyof UserSettings>;
 
 		// undefined, not falsy: a null is the caller clearing the setting and must survive.
-		for (const key of Object.keys(userSettingsPayloadSchema.shape) as Array<keyof UserSettings>) {
-			const value = message.payload[key];
-
-			if (value !== undefined) {
-				payload[key] = value;
-			}
-		}
-
-		return payload;
+		return Object.fromEntries(
+			keys
+				.filter((key) => message.payload[key] !== undefined)
+				.map((key) => [key, message.payload[key]])
+		);
 	};
 
 	/**
