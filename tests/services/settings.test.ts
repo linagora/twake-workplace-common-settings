@@ -158,6 +158,30 @@ describe('Settings service', () => {
 			const { params } = compileMerge(lastUpdateSet().settings);
 			expect(params).toEqual(['{"language":"fr"}']);
 		});
+
+		it('should store the theme', async () => {
+			await settingsService.init();
+			const handle = mockSubscribe.mock.calls.at(-1)?.[3] as (m: unknown) => Promise<void>;
+
+			mockFindFirst.mockResolvedValue({ nickname: 'testuser', version: 1, settings: {} });
+			mockUpdateSet.mockReturnValue({
+				where: vi
+					.fn()
+					.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ nickname: 'testuser' }]) })
+			});
+
+			await handle({
+				source: 'test',
+				nickname: 'testuser',
+				request_id: 'XXXX',
+				timestamp: Date.now(),
+				version: 2,
+				payload: { theme: 'dark' }
+			});
+
+			const { params } = compileMerge(lastUpdateSet().settings);
+			expect(params).toEqual(['{"theme":"dark"}']);
+		});
 	});
 
 	describe('the getUserSettings method', () => {

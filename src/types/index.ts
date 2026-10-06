@@ -21,6 +21,7 @@ export interface UserSettings {
 	phone: string;
 	matrix_id: string;
 	display_name: string;
+	theme: 'light' | 'dark' | 'auto';
 }
 
 export interface UserSettingsResponse extends Partial<Nullable<UserSettings>> {

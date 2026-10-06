@@ -174,6 +174,7 @@ interface UserSettings {
 	phone: string;
 	matrix_id: string;
 	display_name: string;
+	theme: 'light' | 'dark' | 'auto';
 }
 ```
 
@@ -188,6 +189,7 @@ Zod schemas in `src/lib/schemas/user-settings.ts` validate all incoming data:
 - Avatar must be valid URL
 - Nickname must pass custom Twake validation (`validateNickName`)
 - Language defaults to 'en' if not provided
+- Theme is optional and must be `light`, `dark` or `auto`
 
 ### Settings Synchronization
 

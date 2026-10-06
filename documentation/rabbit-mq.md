@@ -11,6 +11,9 @@ This message is consumed by backend services responsible for updating their cach
 - Content-Type: json
 - Delivery Mode: persistant
 - Exchange type: topic
+- Exchange: `RABBITMQ_EXCHANGE` (default `settings`)
+- Published routing key: `RABBITMQ_SETTINGS_OUTPUT_ROUTING_KEY` (default `user.settings.updated`). Each message holds the full stored settings, sent after every change.
+- Consumed routing key: `RABBITMQ_SETTINGS_INPUT_ROUTING_KEY` (default `user.settings.update`), on the queue `RABBITMQ_SETTINGS_INPUT_QUEUE` (default `user.settings.input`)
 
 ## Payload Structure
 
@@ -30,7 +33,8 @@ This message is consumed by backend services responsible for updating their cach
 		"email": "john.doe@example.com",
 		"phone": "+33612345678",
 		"matrix_id": "@johndoe:matrix.org",
-		"display_name": "John Doe"
+		"display_name": "John Doe",
+		"theme": "dark"
 	}
 }
 ```
@@ -61,6 +65,7 @@ This message is consumed by backend services responsible for updating their cach
 | `phone`        | string | User's phone number in E.164 format.              |
 | `matrix_id`    | string | User's Matrix ID. (can be null)                   |
 | `display_name` | string | Full display name to show in UIs.                 |
+| `theme`        | string | `"light"`, `"dark"` or `"auto"`. Absent if unset. |
 
 ## Expected Consumer Behavior
 
