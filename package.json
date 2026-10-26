@@ -43,7 +43,7 @@
 		"vitest": "^3.2.3"
 	},
 	"dependencies": {
-		"@linagora/rabbitmq-client": "^0.1.2",
+		"@linagora/rabbitmq-client": "^0.7.2",
 		"drizzle-orm": "^0.40.0",
 		"postgres": "^3.4.5",
 		"tslog": "^4.9.3",
