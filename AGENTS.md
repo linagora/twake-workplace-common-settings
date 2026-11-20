@@ -2,6 +2,8 @@
 
 This file provides guidance to agents when working with code in this repository.
 
+- Decisions: `docs/decisions.md`, mandatory. Search it before asking a question or proposing a change; record every decision there, in the commit that applies it (skill `twake-decisions`).
+
 ## Project Overview
 
 Twake Workplace Common Settings is a SvelteKit-based microservice that manages user settings for the Twake Workplace ecosystem. It provides a centralized API for creating, reading, and updating user settings, with RabbitMQ integration for broadcasting changes to other services.
